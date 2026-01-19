@@ -1,0 +1,506 @@
+#include "database_impl.hpp"
+#include <algorithm>
+#include <cctype>
+
+namespace cratedigger {
+
+// ============================================================================
+// Case-Insensitive String Comparison
+// ============================================================================
+
+bool CaseInsensitiveCompare::operator()(const std::string& a, const std::string& b) const {
+    return std::lexicographical_compare(
+        a.begin(), a.end(),
+        b.begin(), b.end(),
+        [](unsigned char ca, unsigned char cb) {
+            return std::tolower(ca) < std::tolower(cb);
+        }
+    );
+}
+
+// ============================================================================
+// Table Scanning
+// ============================================================================
+
+template<typename RowHandler>
+void DatabaseImpl::scan_table(PageType type, RowHandler handler) {
+    // Find the table with matching type
+    for (const auto& table : pdb_.tables()) {
+        if (table.type != type) continue;
+
+        uint32_t current_page_idx = table.first_page_index;
+        uint32_t last_page_idx = table.last_page_index;
+        bool more_pages = true;
+
+        while (more_pages) {
+            auto page_result = pdb_.read_page(current_page_idx);
+            if (!page_result) {
+                LOG_ERROR("Failed to read page {}", current_page_idx);
+                break;
+            }
+
+            const auto& page = *page_result;
+
+            if (page.is_data_page) {
+                for (const auto& row_group : page.row_groups) {
+                    for (size_t row_idx = 0; row_idx < row_group.row_offsets.size(); ++row_idx) {
+                        // Check if row is present
+                        bool present = ((row_group.row_present_flags >> row_idx) & 1) != 0;
+                        if (!present) continue;
+
+                        uint16_t row_offset = row_group.row_offsets[row_idx];
+                        size_t row_base = row_group.heap_pos + row_offset;
+
+                        handler(row_base);
+                    }
+                }
+            }
+
+            if (current_page_idx == last_page_idx) {
+                more_pages = false;
+            } else {
+                current_page_idx = page.next_page_index;
+            }
+        }
+
+        return;  // Found and processed the table
+    }
+
+    LOG_WARN("Table type {} not found", static_cast<int>(type));
+}
+
+template<typename RowHandler>
+void scan_table_ext(RekordboxPdb& pdb, PageTypeExt type, RowHandler handler) {
+    for (const auto& table : pdb.tables()) {
+        if (table.type_ext != type) continue;
+
+        uint32_t current_page_idx = table.first_page_index;
+        uint32_t last_page_idx = table.last_page_index;
+        bool more_pages = true;
+
+        while (more_pages) {
+            auto page_result = pdb.read_page(current_page_idx);
+            if (!page_result) {
+                LOG_ERROR("Failed to read page {}", current_page_idx);
+                break;
+            }
+
+            const auto& page = *page_result;
+
+            if (page.is_data_page) {
+                for (const auto& row_group : page.row_groups) {
+                    for (size_t row_idx = 0; row_idx < row_group.row_offsets.size(); ++row_idx) {
+                        bool present = ((row_group.row_present_flags >> row_idx) & 1) != 0;
+                        if (!present) continue;
+
+                        uint16_t row_offset = row_group.row_offsets[row_idx];
+                        size_t row_base = row_group.heap_pos + row_offset;
+
+                        handler(row_base);
+                    }
+                }
+            }
+
+            if (current_page_idx == last_page_idx) {
+                more_pages = false;
+            } else {
+                current_page_idx = page.next_page_index;
+            }
+        }
+
+        return;
+    }
+
+    LOG_WARN("Table type {} not found", static_cast<int>(type));
+}
+
+std::string DatabaseImpl::read_string_at_row(size_t row_base, uint16_t offset) const {
+    return pdb_.read_string(row_base + offset);
+}
+
+// ============================================================================
+// Index Building
+// ============================================================================
+
+void DatabaseImpl::build_indices() {
+    if (pdb_.is_ext()) {
+        // exportExt.pdb tables
+        index_tags();
+        index_tag_tracks();
+    } else {
+        // export.pdb tables
+        index_tracks();
+        index_artists();
+        index_albums();
+        index_genres();
+        index_labels();
+        index_colors();
+        index_keys();
+        index_artwork();
+        index_playlists();
+        index_playlist_folders();
+        index_history_playlists();
+        index_history_entries();
+    }
+}
+
+void DatabaseImpl::index_tracks() {
+    scan_table(PageType::Tracks, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawTrackRow));
+        if (data.size() < sizeof(RawTrackRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawTrackRow*>(data.data());
+
+        TrackRow row;
+        row.id = TrackId{static_cast<int64_t>(raw->id)};
+        row.artist_id = ArtistId{static_cast<int64_t>(raw->artist_id)};
+        row.composer_id = ArtistId{static_cast<int64_t>(raw->composer_id)};
+        row.original_artist_id = ArtistId{static_cast<int64_t>(raw->original_artist_id)};
+        row.remixer_id = ArtistId{static_cast<int64_t>(raw->remixer_id)};
+        row.album_id = AlbumId{static_cast<int64_t>(raw->album_id)};
+        row.genre_id = GenreId{static_cast<int64_t>(raw->genre_id)};
+        row.label_id = LabelId{static_cast<int64_t>(raw->label_id)};
+        row.key_id = KeyId{static_cast<int64_t>(raw->key_id)};
+        row.color_id = ColorId{static_cast<int64_t>(raw->color_id)};
+        row.artwork_id = ArtworkId{static_cast<int64_t>(raw->artwork_id)};
+        row.duration_seconds = raw->duration;
+        row.bpm_100x = raw->tempo;
+        row.rating = raw->rating;
+        row.bitrate = raw->bitrate;
+        row.sample_rate = raw->sample_rate;
+        row.year = raw->year;
+
+        // Read strings (per IR_SCHEMA.md string offset indices)
+        row.isrc = read_string_at_row(row_base, raw->ofs_strings[0]);
+        row.message = read_string_at_row(row_base, raw->ofs_strings[5]);
+        row.date_added = read_string_at_row(row_base, raw->ofs_strings[10]);
+        row.release_date = read_string_at_row(row_base, raw->ofs_strings[11]);
+        row.mix_name = read_string_at_row(row_base, raw->ofs_strings[12]);
+        row.analyze_path = read_string_at_row(row_base, raw->ofs_strings[14]);
+        row.analyze_date = read_string_at_row(row_base, raw->ofs_strings[15]);
+        row.comment = read_string_at_row(row_base, raw->ofs_strings[16]);
+        row.title = read_string_at_row(row_base, raw->ofs_strings[17]);
+        row.filename = read_string_at_row(row_base, raw->ofs_strings[19]);
+        row.file_path = read_string_at_row(row_base, raw->ofs_strings[20]);
+
+        // Add to primary index
+        track_index[row.id] = row;
+
+        // Add to secondary indices
+        if (!row.title.empty()) {
+            track_title_index[row.title].insert(row.id);
+        }
+        if (row.artist_id.value > 0) {
+            track_artist_index[row.artist_id].insert(row.id);
+        }
+        if (row.composer_id.value > 0) {
+            track_artist_index[row.composer_id].insert(row.id);
+        }
+        if (row.original_artist_id.value > 0) {
+            track_artist_index[row.original_artist_id].insert(row.id);
+        }
+        if (row.remixer_id.value > 0) {
+            track_artist_index[row.remixer_id].insert(row.id);
+        }
+        if (row.album_id.value > 0) {
+            track_album_index[row.album_id].insert(row.id);
+        }
+        if (row.genre_id.value > 0) {
+            track_genre_index[row.genre_id].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} tracks", track_index.size());
+}
+
+void DatabaseImpl::index_artists() {
+    scan_table(PageType::Artists, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawArtistRow));
+        if (data.size() < sizeof(RawArtistRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawArtistRow*>(data.data());
+
+        ArtistRow row;
+        row.id = ArtistId{static_cast<int64_t>(raw->id)};
+
+        // Determine name offset (near or far)
+        uint16_t name_offset = raw->ofs_name_near;
+        if ((raw->subtype & 0x04) == 0x04) {
+            auto far_data = pdb_.data_at(row_base + 0x0a, 2);
+            if (far_data.size() >= 2) {
+                name_offset = static_cast<uint16_t>(far_data[0]) |
+                              (static_cast<uint16_t>(far_data[1]) << 8);
+            }
+        }
+
+        row.name = read_string_at_row(row_base, name_offset);
+
+        artist_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            artist_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} artists", artist_index.size());
+}
+
+void DatabaseImpl::index_albums() {
+    scan_table(PageType::Albums, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawAlbumRow));
+        if (data.size() < sizeof(RawAlbumRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawAlbumRow*>(data.data());
+
+        AlbumRow row;
+        row.id = AlbumId{static_cast<int64_t>(raw->id)};
+        row.artist_id = ArtistId{static_cast<int64_t>(raw->artist_id)};
+
+        // Determine name offset
+        uint16_t name_offset = raw->ofs_name_near;
+        if ((raw->subtype & 0x04) == 0x04) {
+            auto far_data = pdb_.data_at(row_base + 0x16, 2);
+            if (far_data.size() >= 2) {
+                name_offset = static_cast<uint16_t>(far_data[0]) |
+                              (static_cast<uint16_t>(far_data[1]) << 8);
+            }
+        }
+
+        row.name = read_string_at_row(row_base, name_offset);
+
+        album_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            album_name_index[row.name].insert(row.id);
+        }
+        if (row.artist_id.value > 0) {
+            album_artist_index[row.artist_id].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} albums", album_index.size());
+}
+
+void DatabaseImpl::index_genres() {
+    scan_table(PageType::Genres, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawGenreRow));
+        if (data.size() < sizeof(RawGenreRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawGenreRow*>(data.data());
+
+        GenreRow row;
+        row.id = GenreId{static_cast<int64_t>(raw->id)};
+        row.name = pdb_.read_string(row_base + sizeof(RawGenreRow));
+
+        genre_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            genre_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} genres", genre_index.size());
+}
+
+void DatabaseImpl::index_labels() {
+    scan_table(PageType::Labels, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawLabelRow));
+        if (data.size() < sizeof(RawLabelRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawLabelRow*>(data.data());
+
+        LabelRow row;
+        row.id = LabelId{static_cast<int64_t>(raw->id)};
+        row.name = pdb_.read_string(row_base + sizeof(RawLabelRow));
+
+        label_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            label_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} labels", label_index.size());
+}
+
+void DatabaseImpl::index_colors() {
+    scan_table(PageType::Colors, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawColorRow));
+        if (data.size() < sizeof(RawColorRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawColorRow*>(data.data());
+
+        ColorRow row;
+        row.id = ColorId{static_cast<int64_t>(raw->id)};
+        row.name = pdb_.read_string(row_base + sizeof(RawColorRow));
+
+        color_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            color_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} colors", color_index.size());
+}
+
+void DatabaseImpl::index_keys() {
+    scan_table(PageType::Keys, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawKeyRow));
+        if (data.size() < sizeof(RawKeyRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawKeyRow*>(data.data());
+
+        KeyRow row;
+        row.id = KeyId{static_cast<int64_t>(raw->id)};
+        row.name = pdb_.read_string(row_base + sizeof(RawKeyRow));
+
+        key_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            key_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} musical keys", key_index.size());
+}
+
+void DatabaseImpl::index_artwork() {
+    scan_table(PageType::Artwork, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawArtworkRow));
+        if (data.size() < sizeof(RawArtworkRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawArtworkRow*>(data.data());
+
+        ArtworkRow row;
+        row.id = ArtworkId{static_cast<int64_t>(raw->id)};
+        row.path = pdb_.read_string(row_base + sizeof(RawArtworkRow));
+
+        artwork_index[row.id] = row;
+    });
+
+    LOG_INFO("Indexed {} artwork paths", artwork_index.size());
+}
+
+void DatabaseImpl::index_playlists() {
+    scan_table(PageType::PlaylistEntries, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawPlaylistEntryRow));
+        if (data.size() < sizeof(RawPlaylistEntryRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawPlaylistEntryRow*>(data.data());
+
+        PlaylistId playlist_id{static_cast<int64_t>(raw->playlist_id)};
+        TrackId track_id{static_cast<int64_t>(raw->track_id)};
+        uint32_t entry_index = raw->entry_index;
+
+        auto& playlist = playlist_index[playlist_id];
+        if (playlist.size() <= entry_index) {
+            playlist.resize(entry_index + 1);
+        }
+        playlist[entry_index] = track_id;
+    });
+
+    LOG_INFO("Indexed {} playlists", playlist_index.size());
+}
+
+void DatabaseImpl::index_playlist_folders() {
+    scan_table(PageType::PlaylistTree, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawPlaylistTreeRow));
+        if (data.size() < sizeof(RawPlaylistTreeRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawPlaylistTreeRow*>(data.data());
+
+        PlaylistFolderEntry entry;
+        entry.id = PlaylistId{static_cast<int64_t>(raw->id)};
+        entry.is_folder = raw->raw_is_folder != 0;
+        entry.name = pdb_.read_string(row_base + sizeof(RawPlaylistTreeRow));
+
+        PlaylistId parent_id{static_cast<int64_t>(raw->parent_id)};
+        uint32_t sort_order = raw->sort_order;
+
+        auto& folder = playlist_folder_index[parent_id];
+        if (folder.size() <= sort_order) {
+            folder.resize(sort_order + 1);
+        }
+        folder[sort_order] = entry;
+    });
+
+    LOG_INFO("Indexed {} playlist folders", playlist_folder_index.size());
+}
+
+void DatabaseImpl::index_history_playlists() {
+    scan_table(PageType::HistoryPlaylists, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawHistoryPlaylistRow));
+        if (data.size() < sizeof(RawHistoryPlaylistRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawHistoryPlaylistRow*>(data.data());
+
+        PlaylistId id{static_cast<int64_t>(raw->id)};
+        std::string name = pdb_.read_string(row_base + sizeof(RawHistoryPlaylistRow));
+
+        history_playlist_name_index[name] = id;
+    });
+
+    LOG_INFO("Indexed {} history playlist names", history_playlist_name_index.size());
+}
+
+void DatabaseImpl::index_history_entries() {
+    scan_table(PageType::HistoryEntries, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawHistoryEntryRow));
+        if (data.size() < sizeof(RawHistoryEntryRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawHistoryEntryRow*>(data.data());
+
+        PlaylistId playlist_id{static_cast<int64_t>(raw->playlist_id)};
+        TrackId track_id{static_cast<int64_t>(raw->track_id)};
+        uint32_t entry_index = raw->entry_index;
+
+        auto& playlist = history_playlist_index[playlist_id];
+        if (playlist.size() <= entry_index) {
+            playlist.resize(entry_index + 1);
+        }
+        playlist[entry_index] = track_id;
+    });
+
+    LOG_INFO("Indexed {} history playlists", history_playlist_index.size());
+}
+
+void DatabaseImpl::index_tags() {
+    scan_table_ext(pdb_, PageTypeExt::Tags, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawTagRow));
+        if (data.size() < sizeof(RawTagRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawTagRow*>(data.data());
+
+        TagRow row;
+        row.id = TagId{static_cast<int64_t>(raw->id)};
+        row.name = pdb_.read_string(row_base + sizeof(RawTagRow));
+
+        tag_index[row.id] = row;
+
+        if (!row.name.empty()) {
+            tag_name_index[row.name].insert(row.id);
+        }
+    });
+
+    LOG_INFO("Indexed {} tags", tag_index.size());
+}
+
+void DatabaseImpl::index_tag_tracks() {
+    scan_table_ext(pdb_, PageTypeExt::TagTracks, [this](size_t row_base) {
+        auto data = pdb_.data_at(row_base, sizeof(RawTagTrackRow));
+        if (data.size() < sizeof(RawTagTrackRow)) return;
+
+        const auto* raw = reinterpret_cast<const RawTagTrackRow*>(data.data());
+
+        TagId tag_id{static_cast<int64_t>(raw->tag_id)};
+        TrackId track_id{static_cast<int64_t>(raw->track_id)};
+
+        tag_track_index[tag_id].insert(track_id);
+        track_tag_index[track_id].insert(tag_id);
+    });
+
+    LOG_INFO("Indexed tag-track associations");
+}
+
+} // namespace cratedigger

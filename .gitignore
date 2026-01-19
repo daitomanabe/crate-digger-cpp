@@ -1,16 +1,80 @@
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE files
 .idea/
-doc/Analysis.pdf
-doc/*.aux
-doc/*.log
-doc/*.lof
-doc/*.lot
-doc/*.toc
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Compiled files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# vcpkg
+vcpkg_installed/
+
+# Cache directories
+.cache/
+.ccache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+*.whl
+
+# Test outputs
+test_results/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Conan
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
+
+# Ninja
+.ninja_deps
+.ninja_log
+
+# Clang
+.clangd/
+compile_flags.txt
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
