@@ -1,10 +1,10 @@
 #pragma once
 /**
  * @file types.hpp
- * @brief Core types for Crate Digger C++ (C++17)
+ * @brief Core types for Crate Digger C++ (C++20)
  *
  * Design Rules (per INTRODUCTION_JAVA_TO_CPP.md):
- * - MUST: gsl::span for array access
+ * - MUST: std::span for array access
  * - MUST: Handle Pattern (integer IDs, not raw pointers)
  * - MUST: No Magic Numbers
  * - MUST: Deterministic (Time Injection, Random Injection)
@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <gsl/gsl-lite.hpp>
+#include <span>
 #include <optional>
 #include <variant>
 #include <vector>

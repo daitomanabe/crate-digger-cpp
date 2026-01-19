@@ -3,7 +3,7 @@
 #include <fstream>
 #include <cstring>
 #include <algorithm>
-#include <fmt/format.h>
+#include <format>
 
 namespace cratedigger {
 
@@ -73,7 +73,7 @@ Result<RekordboxAnlz> RekordboxAnlz::open(const std::filesystem::path& path) {
     if (!file) {
         return make_error(
             ErrorCode::FileNotFound,
-            fmt::format("Cannot open ANLZ file: {}", path.string())
+            std::format("Cannot open ANLZ file: {}", path.string())
         );
     }
 
@@ -101,7 +101,7 @@ Result<RekordboxAnlz> RekordboxAnlz::open(const std::filesystem::path& path) {
     if (magic != 0x504D4149) {  // "PMAI"
         return make_error(
             ErrorCode::InvalidFileFormat,
-            fmt::format("Invalid ANLZ magic number: {:08X}", magic)
+            std::format("Invalid ANLZ magic number: {:08X}", magic)
         );
     }
 

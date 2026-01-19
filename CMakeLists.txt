@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.14)
 project(crate_digger VERSION 1.0.0 LANGUAGES CXX)
 
 # ============================================================================
-# C++17 Strict Configuration
+# C++20 Strict Configuration
 # ============================================================================
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -19,28 +19,7 @@ option(CRATE_DIGGER_BUILD_CLI "Build CLI tool" ON)
 option(CRATE_DIGGER_BUILD_TESTS "Build tests" ON)
 
 # ============================================================================
-# Dependencies via FetchContent
-# ============================================================================
-include(FetchContent)
-
-# fmt library (std::format replacement for C++17)
-FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 10.2.1
-)
-FetchContent_MakeAvailable(fmt)
-
-# gsl-lite (std::span replacement for C++17)
-FetchContent_Declare(
-    gsl-lite
-    GIT_REPOSITORY https://github.com/gsl-lite/gsl-lite.git
-    GIT_TAG v0.41.0
-)
-FetchContent_MakeAvailable(gsl-lite)
-
-# ============================================================================
-# Core Library (Pure C++17, No Framework Dependencies)
+# Core Library (Pure C++20, No Framework Dependencies)
 # ============================================================================
 add_library(crate_digger_core STATIC
     src/core/database.cpp
@@ -57,14 +36,7 @@ target_include_directories(crate_digger_core
         $<INSTALL_INTERFACE:include>
 )
 
-target_compile_features(crate_digger_core PUBLIC cxx_std_17)
-
-# Link dependencies
-target_link_libraries(crate_digger_core
-    PUBLIC
-        fmt::fmt
-        gsl::gsl-lite
-)
+target_compile_features(crate_digger_core PUBLIC cxx_std_20)
 
 # Strict warning flags
 target_compile_options(crate_digger_core PRIVATE

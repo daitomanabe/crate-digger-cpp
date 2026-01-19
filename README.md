@@ -1,6 +1,6 @@
-# Crate Digger C++ (C++17)
+# Crate Digger C++ (C++20)
 
-A C++17 library for parsing rekordbox database exports (export.pdb and exportExt.pdb files) and analysis files (ANLZ).
+A C++20 library for parsing rekordbox database exports (export.pdb and exportExt.pdb files) and analysis files (ANLZ).
 
 This is a C++ port of the original [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library by Deep Symmetry.
 
@@ -21,11 +21,8 @@ This is a C++ port of the original [Crate Digger](https://github.com/Deep-Symmet
 
 ## Requirements
 
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- C++20 compatible compiler (GCC 10+, Clang 12+, MSVC 2019+)
 - CMake 3.16+
-- fmt library (for string formatting)
-- gsl-lite (for span support)
-- nlohmann_json (for JSON handling)
 - Python 3.8+ (optional, for Python bindings)
 - nanobind (optional, for Python bindings)
 
@@ -182,12 +179,13 @@ SafetyLimits::MAX_RATING = 5
 
 ## Architecture
 
-The library uses C++17 with compatibility libraries:
+The library uses modern C++20 features:
 
 - **Handle Pattern**: All entity references use strongly-typed integer IDs
 - **Result<T>**: Error handling without exceptions using `std::variant`
-- **gsl::span**: Non-owning views for binary data (via gsl-lite)
-- **fmt::format**: Modern string formatting (via fmt library)
+- **std::span**: Non-owning views for binary data
+- **std::format**: Modern string formatting
+- **std::source_location**: For logging with source location
 - **RAII**: Resource management with smart pointers
 
 ## Testing

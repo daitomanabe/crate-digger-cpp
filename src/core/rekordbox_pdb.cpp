@@ -2,7 +2,7 @@
 #include "cratedigger/logging.hpp"
 #include <cstring>
 #include <algorithm>
-#include <fmt/format.h>
+#include <format>
 
 namespace cratedigger {
 
@@ -86,7 +86,7 @@ Result<RekordboxPdb> RekordboxPdb::open(const std::filesystem::path& path, bool 
     if (!file) {
         return make_error(
             ErrorCode::FileNotFound,
-            fmt::format("Cannot open file: {}", path.string())
+            std::format("Cannot open file: {}", path.string())
         );
     }
 
@@ -118,7 +118,7 @@ Result<RekordboxPdb> RekordboxPdb::open(const std::filesystem::path& path, bool 
     if (pdb.page_size_ == 0 || pdb.page_size_ > 65536) {
         return make_error(
             ErrorCode::InvalidFileFormat,
-            fmt::format("Invalid page size: {}", pdb.page_size_)
+            std::format("Invalid page size: {}", pdb.page_size_)
         );
     }
 
@@ -178,7 +178,7 @@ RekordboxPdb& RekordboxPdb::operator=(RekordboxPdb&& other) noexcept {
 
 RekordboxPdb::~RekordboxPdb() = default;
 
-gsl::span<const PdbTable> RekordboxPdb::tables() const {
+std::span<const PdbTable> RekordboxPdb::tables() const {
     return tables_;
 }
 
@@ -188,7 +188,7 @@ Result<PdbPage> RekordboxPdb::read_page(uint32_t page_index) const {
     if (page_offset + page_size_ > file_data_.size()) {
         return make_error(
             ErrorCode::CorruptedData,
-            fmt::format("Page {} extends past end of file", page_index)
+            std::format("Page {} extends past end of file", page_index)
         );
     }
 
@@ -258,11 +258,11 @@ std::string RekordboxPdb::read_string(size_t offset) const {
     );
 }
 
-gsl::span<const uint8_t> RekordboxPdb::data_at(size_t offset, size_t size) const {
+std::span<const uint8_t> RekordboxPdb::data_at(size_t offset, size_t size) const {
     if (offset + size > file_data_.size()) {
         return {};
     }
-    return gsl::span<const uint8_t>(file_data_.data() + offset, size);
+    return std::span<const uint8_t>(file_data_.data() + offset, size);
 }
 
 } // namespace cratedigger

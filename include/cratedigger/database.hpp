@@ -1,11 +1,11 @@
 #pragma once
 /**
  * @file database.hpp
- * @brief Rekordbox Database Parser (C++17 Port)
+ * @brief Rekordbox Database Parser (C++20 Port)
  *
  * Design Rules (per INTRODUCTION_JAVA_TO_CPP.md):
  * - MUST: Headless (no GUI/Window dependencies)
- * - MUST: gsl::span for array access
+ * - MUST: std::span for array access
  * - MUST: Handle Pattern (integer IDs)
  * - MUST: No Exceptions in Process Loop
  * - MUST: No Allocation in Process Loop
@@ -15,7 +15,7 @@
 #include "logging.hpp"
 #include <filesystem>
 #include <memory>
-#include <gsl/gsl-lite.hpp>
+#include <span>
 #include <functional>
 
 namespace cratedigger {

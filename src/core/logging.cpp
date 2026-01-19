@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
-#include <fmt/format.h>
+#include <format>
 
 namespace cratedigger {
 
@@ -56,14 +56,14 @@ void Logger::log(LogLevel level, const SourceLocation& loc, const std::string& m
     std::ostringstream timestamp_stream;
     timestamp_stream << std::put_time(std::gmtime(&time), "%FT%TZ");
 
-    // Build JSON Lines output using fmt::format (C++17 compatible)
-    std::string json_line = fmt::format(
+    // Build JSON Lines output using std::format (C++20)
+    std::string json_line = std::format(
         R"({{"timestamp":"{}","level":"{}","message":"{}","source":"{}:{}"}})",
         timestamp_stream.str(),
         level_to_string(level),
         escape_json_string(message),
-        loc.file_name,
-        loc.line
+        loc.file_name(),
+        loc.line()
     );
 
     std::lock_guard<std::mutex> lock(mutex_);
