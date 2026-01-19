@@ -353,6 +353,52 @@ size_t Database::tag_count() const {
 }
 
 // ============================================================================
+// Tag Category Access
+// ============================================================================
+
+std::optional<TagRow> Database::get_category(TagId id) const {
+    auto it = impl_->category_index.find(id);
+    if (it != impl_->category_index.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+std::vector<TagId> Database::find_categories_by_name(std::string_view name) const {
+    std::vector<TagId> result;
+    auto it = impl_->category_name_index.find(std::string(name));
+    if (it != impl_->category_name_index.end()) {
+        result.assign(it->second.begin(), it->second.end());
+    }
+    return result;
+}
+
+const std::vector<TagId>& Database::category_order() const {
+    return impl_->category_order;
+}
+
+std::vector<TagId> Database::get_tags_in_category(TagId category_id) const {
+    auto it = impl_->category_tags.find(category_id);
+    if (it != impl_->category_tags.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+std::vector<TagId> Database::all_category_ids() const {
+    std::vector<TagId> result;
+    result.reserve(impl_->category_index.size());
+    for (const auto& [id, _] : impl_->category_index) {
+        result.push_back(id);
+    }
+    return result;
+}
+
+size_t Database::category_count() const {
+    return impl_->category_index.size();
+}
+
+// ============================================================================
 // Cue Point Access
 // ============================================================================
 
@@ -410,6 +456,78 @@ std::vector<CuePoint> Database::find_cue_points_by_filename(const std::string& f
 
 size_t Database::cue_point_track_count() const {
     return impl_->cue_point_manager_.track_count();
+}
+
+// ============================================================================
+// Beat Grid Access
+// ============================================================================
+
+const BeatGrid* Database::get_beat_grid(const std::string& track_path) const {
+    return impl_->cue_point_manager_.get_beat_grid(track_path);
+}
+
+const BeatGrid* Database::get_beat_grid_for_track(TrackId id) const {
+    auto track = get_track(id);
+    if (!track || track->file_path.empty()) {
+        return nullptr;
+    }
+    return get_beat_grid(track->file_path);
+}
+
+const BeatGrid* Database::find_beat_grid_by_filename(const std::string& filename) const {
+    return impl_->cue_point_manager_.find_beat_grid_by_filename(filename);
+}
+
+size_t Database::beat_grid_track_count() const {
+    return impl_->cue_point_manager_.beat_grid_count();
+}
+
+// ============================================================================
+// Waveform Access
+// ============================================================================
+
+const TrackWaveforms* Database::get_waveforms(const std::string& track_path) const {
+    return impl_->cue_point_manager_.get_waveforms(track_path);
+}
+
+const TrackWaveforms* Database::get_waveforms_for_track(TrackId id) const {
+    auto track = get_track(id);
+    if (!track || track->file_path.empty()) {
+        return nullptr;
+    }
+    return get_waveforms(track->file_path);
+}
+
+const TrackWaveforms* Database::find_waveforms_by_filename(const std::string& filename) const {
+    return impl_->cue_point_manager_.find_waveforms_by_filename(filename);
+}
+
+size_t Database::waveform_track_count() const {
+    return impl_->cue_point_manager_.waveform_count();
+}
+
+// ============================================================================
+// Song Structure Access
+// ============================================================================
+
+const SongStructure* Database::get_song_structure(const std::string& track_path) const {
+    return impl_->cue_point_manager_.get_song_structure(track_path);
+}
+
+const SongStructure* Database::get_song_structure_for_track(TrackId id) const {
+    auto track = get_track(id);
+    if (!track || track->file_path.empty()) {
+        return nullptr;
+    }
+    return get_song_structure(track->file_path);
+}
+
+const SongStructure* Database::find_song_structure_by_filename(const std::string& filename) const {
+    return impl_->cue_point_manager_.find_song_structure_by_filename(filename);
+}
+
+size_t Database::song_structure_track_count() const {
+    return impl_->cue_point_manager_.song_structure_count();
 }
 
 // ============================================================================

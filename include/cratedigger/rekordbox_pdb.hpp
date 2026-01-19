@@ -190,7 +190,16 @@ struct RawHistoryEntryRow {
 
 /// Raw tag row data (exportExt.pdb)
 struct RawTagRow {
-    uint32_t id;
+    uint16_t subtype;            // Usually 0x0680, or 0x0684 for long name offsets
+    uint16_t tag_index;          // Increasing index in multiples of 0x20
+    uint8_t reserved1[8];        // Always zero
+    uint32_t category;           // ID of parent tag category (0 if this IS a category)
+    uint32_t category_pos;       // Position within category (display order)
+    uint32_t id;                 // Unique ID of this tag or category
+    uint32_t raw_is_category;    // Non-zero if this row represents a tag category
+    uint8_t reserved2;           // Always 0x03
+    uint8_t ofs_name_near;       // Offset to tag/category name string
+    uint8_t ofs_unknown_near;    // Offset to empty string
     // Followed by device_sql_string for name
 };
 

@@ -58,10 +58,16 @@ public:
     std::map<std::string, PlaylistId, CaseInsensitiveCompare> history_playlist_name_index;
 
     // Tag indices (exportExt.pdb)
-    PrimaryIndex<TagId, TagRow> tag_index;
-    NameIndex<TagId> tag_name_index;
+    PrimaryIndex<TagId, TagRow> tag_index;               // Tags only (not categories)
+    NameIndex<TagId> tag_name_index;                     // Tag name lookup
     SecondaryIndex<TagId, TrackId> tag_track_index;      // Tag -> Tracks
     SecondaryIndex<TrackId, TagId> track_tag_index;      // Track -> Tags
+
+    // Tag category indices (exportExt.pdb)
+    PrimaryIndex<TagId, TagRow> category_index;          // Categories only
+    NameIndex<TagId> category_name_index;                // Category name lookup
+    std::vector<TagId> category_order;                   // Categories in display order
+    std::map<TagId, std::vector<TagId>> category_tags;   // Category -> Tags in order
 
     RekordboxPdb pdb_;
     std::filesystem::path source_file_;

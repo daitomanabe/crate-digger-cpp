@@ -30,11 +30,13 @@ enum class AnlzSectionType : uint32_t {
     ExtCuePointList = 0x50435832, // "PCX2" - Extended cue points (with colors)
     Path = 0x50505448,        // "PPTH" - File path
     VBR = 0x50564252,         // "PVBR" - VBR info
-    WaveformPreview = 0x50574156, // "PWAV" - Waveform preview
-    WaveformTiny = 0x5057563,  // "PWV3" - Tiny waveform
-    WaveformDetail = 0x50575632, // "PWV2" - Detailed waveform
-    WaveformColor = 0x50575634, // "PWV4" - Colored waveform preview
-    WaveformColorDetail = 0x50575635, // "PWV5" - Colored detailed waveform
+    WaveformPreview = 0x50574156, // "PWAV" - Waveform preview (1 byte/entry)
+    WaveformTiny = 0x50575632,    // "PWV2" - Tiny waveform (1 byte/entry)
+    WaveformScroll = 0x50575633,  // "PWV3" - Scroll waveform (1 byte/entry, .EXT)
+    WaveformColorPreview = 0x50575634, // "PWV4" - Colored waveform preview (6 bytes/entry, .EXT)
+    WaveformColorScroll = 0x50575635, // "PWV5" - Colored scroll waveform (2 bytes/entry, .EXT)
+    Waveform3BandPreview = 0x50575636, // "PWV6" - 3-band preview (3 bytes/entry, .2EX)
+    Waveform3BandScroll = 0x50575637,  // "PWV7" - 3-band scroll (3 bytes/entry, .2EX)
     SongStructure = 0x50534932, // "PSI2" - Song structure/phrases
     Unknown = 0
 };
@@ -115,6 +117,13 @@ struct CuePointData {
     bool is_active{true};
 };
 
+/// Raw beat grid entry from ANLZ file
+struct RawBeatEntry {
+    uint16_t beat_number;      // Beat within bar (1-4)
+    uint16_t tempo_100x;       // BPM * 100
+    uint32_t time_ms;          // Position in milliseconds
+};
+
 // ============================================================================
 // ANLZ Parser Class
 // ============================================================================
@@ -146,21 +155,49 @@ public:
     /// Get all cue points from this file
     [[nodiscard]] const std::vector<CuePointData>& cue_points() const { return cue_points_; }
 
+    /// Get beat grid from this file
+    [[nodiscard]] const BeatGrid& beat_grid() const { return beat_grid_; }
+
     /// Get file path stored in ANLZ
     [[nodiscard]] const std::string& track_path() const { return track_path_; }
 
     /// Check if file was parsed successfully
     [[nodiscard]] bool is_valid() const { return is_valid_; }
 
+    /// Check if beat grid is present
+    [[nodiscard]] bool has_beat_grid() const { return !beat_grid_.empty(); }
+
+    /// Get waveforms from this file
+    [[nodiscard]] const TrackWaveforms& waveforms() const { return waveforms_; }
+
+    /// Check if any waveform is present
+    [[nodiscard]] bool has_waveforms() const { return waveforms_.has_any(); }
+
+    /// Get song structure from this file
+    [[nodiscard]] const SongStructure& song_structure() const { return song_structure_; }
+
+    /// Check if song structure is present
+    [[nodiscard]] bool has_song_structure() const { return !song_structure_.empty(); }
+
 private:
     RekordboxAnlz() = default;
 
     void parse_sections();
     void parse_cue_list(const uint8_t* data, size_t len, bool is_extended);
+    void parse_beat_grid(const uint8_t* data, size_t len);
     std::string parse_path_section(const uint8_t* data, size_t len);
+    void parse_waveform_preview(const uint8_t* data, size_t len);
+    void parse_waveform_scroll(const uint8_t* data, size_t len, WaveformStyle style);
+    void parse_waveform_color_preview(const uint8_t* data, size_t len);
+    void parse_waveform_color_scroll(const uint8_t* data, size_t len);
+    void parse_waveform_3band(const uint8_t* data, size_t len, bool is_preview);
+    void parse_song_structure(const uint8_t* data, size_t len);
 
     std::vector<uint8_t> file_data_;
     std::vector<CuePointData> cue_points_;
+    BeatGrid beat_grid_;
+    TrackWaveforms waveforms_;
+    SongStructure song_structure_;
     std::string track_path_;
     bool is_valid_{false};
 };
@@ -170,10 +207,10 @@ private:
 // ============================================================================
 
 /**
- * @brief Manages cue points from ANLZ files
+ * @brief Manages cue points and beat grids from ANLZ files
  *
  * Scans a directory for ANLZ files and builds an index of cue points
- * associated with track file paths.
+ * and beat grids associated with track file paths.
  */
 class CuePointManager {
 public:
@@ -192,15 +229,53 @@ public:
     /// Get cue points for a track by partial path match
     [[nodiscard]] std::vector<CuePointData> find_cue_points_by_filename(const std::string& filename) const;
 
+    /// Get beat grid for a track by its file path
+    [[nodiscard]] const BeatGrid* get_beat_grid(const std::string& track_path) const;
+
+    /// Get beat grid for a track by partial path match
+    [[nodiscard]] const BeatGrid* find_beat_grid_by_filename(const std::string& filename) const;
+
     /// Get number of tracks with cue points
     [[nodiscard]] size_t track_count() const { return cue_point_index_.size(); }
 
-    /// Clear all loaded cue points
-    void clear() { cue_point_index_.clear(); }
+    /// Get number of tracks with beat grids
+    [[nodiscard]] size_t beat_grid_count() const { return beat_grid_index_.size(); }
+
+    /// Get waveforms for a track by its file path
+    [[nodiscard]] const TrackWaveforms* get_waveforms(const std::string& track_path) const;
+
+    /// Get waveforms for a track by partial path match
+    [[nodiscard]] const TrackWaveforms* find_waveforms_by_filename(const std::string& filename) const;
+
+    /// Get number of tracks with waveforms
+    [[nodiscard]] size_t waveform_count() const { return waveform_index_.size(); }
+
+    /// Get song structure for a track by its file path
+    [[nodiscard]] const SongStructure* get_song_structure(const std::string& track_path) const;
+
+    /// Get song structure for a track by partial path match
+    [[nodiscard]] const SongStructure* find_song_structure_by_filename(const std::string& filename) const;
+
+    /// Get number of tracks with song structure
+    [[nodiscard]] size_t song_structure_count() const { return song_structure_index_.size(); }
+
+    /// Clear all loaded data
+    void clear() {
+        cue_point_index_.clear();
+        beat_grid_index_.clear();
+        waveform_index_.clear();
+        song_structure_index_.clear();
+    }
 
 private:
     // Map from track path to cue points
     std::map<std::string, std::vector<CuePointData>> cue_point_index_;
+    // Map from track path to beat grid
+    std::map<std::string, BeatGrid> beat_grid_index_;
+    // Map from track path to waveforms
+    std::map<std::string, TrackWaveforms> waveform_index_;
+    // Map from track path to song structure
+    std::map<std::string, SongStructure> song_structure_index_;
 };
 
 } // namespace cratedigger

@@ -1,4 +1,0 @@
-* xref:exports.adoc[Database Exports]
-* xref:anlz.adoc[Analysis Files]
-* xref:crate_digger.adoc[Crate Digger]
-* xref:djl-analysis:ROOT:startup.adoc[_DJ Link Packet Analyisis_]

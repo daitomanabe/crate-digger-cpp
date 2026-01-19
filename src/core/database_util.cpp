@@ -169,10 +169,19 @@ void DatabaseImpl::index_tracks() {
         row.bitrate = raw->bitrate;
         row.sample_rate = raw->sample_rate;
         row.year = raw->year;
+        // Additional numeric fields
+        row.file_size = raw->file_size;
+        row.track_number = raw->track_number;
+        row.disc_number = raw->disc_number;
+        row.play_count = raw->play_count;
+        row.sample_depth = raw->sample_depth;
 
         // Read strings (per IR_SCHEMA.md string offset indices)
         row.isrc = read_string_at_row(row_base, raw->ofs_strings[0]);
+        row.texter = read_string_at_row(row_base, raw->ofs_strings[1]);
         row.message = read_string_at_row(row_base, raw->ofs_strings[5]);
+        row.kuvo_public = read_string_at_row(row_base, raw->ofs_strings[6]);
+        row.autoload_hot_cues = read_string_at_row(row_base, raw->ofs_strings[7]);
         row.date_added = read_string_at_row(row_base, raw->ofs_strings[10]);
         row.release_date = read_string_at_row(row_base, raw->ofs_strings[11]);
         row.mix_name = read_string_at_row(row_base, raw->ofs_strings[12]);
@@ -466,7 +475,11 @@ void DatabaseImpl::index_history_entries() {
 }
 
 void DatabaseImpl::index_tags() {
-    scan_table_ext(pdb_, PageTypeExt::Tags, [this](size_t row_base) {
+    // Temporary storage for ordering
+    std::vector<std::pair<uint32_t, TagId>> category_positions;  // (pos, id)
+    std::map<TagId, std::vector<std::pair<uint32_t, TagId>>> tag_positions;  // category -> [(pos, tag)]
+
+    scan_table_ext(pdb_, PageTypeExt::Tags, [this, &category_positions, &tag_positions](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawTagRow));
         if (data.size() < sizeof(RawTagRow)) return;
 
@@ -474,16 +487,56 @@ void DatabaseImpl::index_tags() {
 
         TagRow row;
         row.id = TagId{static_cast<int64_t>(raw->id)};
-        row.name = pdb_.read_string(row_base + sizeof(RawTagRow));
+        row.category_id = TagId{static_cast<int64_t>(raw->category)};
+        row.category_pos = raw->category_pos;
+        row.is_category = raw->raw_is_category != 0;
 
-        tag_index[row.id] = row;
+        // Read name string using offset
+        // Name is at row_base + ofs_name_near for near offsets, or further for far
+        size_t name_offset = row_base + raw->ofs_name_near;
+        if (raw->subtype == 0x0684) {
+            // Long name offset - read additional offset
+            auto far_offset_data = pdb_.data_at(row_base + raw->ofs_name_near, 4);
+            if (far_offset_data.size() >= 4) {
+                uint32_t far_offset = *reinterpret_cast<const uint32_t*>(far_offset_data.data());
+                name_offset = row_base + far_offset;
+            }
+        }
+        row.name = pdb_.read_string(name_offset);
 
-        if (!row.name.empty()) {
-            tag_name_index[row.name].insert(row.id);
+        if (row.is_category) {
+            // This is a category
+            category_index[row.id] = row;
+            if (!row.name.empty()) {
+                category_name_index[row.name].insert(row.id);
+            }
+            category_positions.emplace_back(row.category_pos, row.id);
+        } else {
+            // This is a tag
+            tag_index[row.id] = row;
+            if (!row.name.empty()) {
+                tag_name_index[row.name].insert(row.id);
+            }
+            // Group by category for ordering
+            tag_positions[row.category_id].emplace_back(row.category_pos, row.id);
         }
     });
 
-    LOG_INFO("Indexed {} tags", tag_index.size());
+    // Sort categories by position and build category_order
+    std::sort(category_positions.begin(), category_positions.end());
+    for (const auto& [pos, id] : category_positions) {
+        category_order.push_back(id);
+    }
+
+    // Sort tags within each category and build category_tags
+    for (auto& [cat_id, tags] : tag_positions) {
+        std::sort(tags.begin(), tags.end());
+        for (const auto& [pos, tag_id] : tags) {
+            category_tags[cat_id].push_back(tag_id);
+        }
+    }
+
+    LOG_INFO("Indexed {} tags, {} categories", tag_index.size(), category_index.size());
 }
 
 void DatabaseImpl::index_tag_tracks() {

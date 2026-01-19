@@ -166,9 +166,18 @@ NB_MODULE(crate_digger, m) {
         .def_ro("comment", &TrackRow::comment)
         .def_ro("bitrate", &TrackRow::bitrate)
         .def_ro("sample_rate", &TrackRow::sample_rate)
-        // Additional fields
+        // Additional numeric fields
+        .def_ro("file_size", &TrackRow::file_size)
+        .def_ro("track_number", &TrackRow::track_number)
+        .def_ro("disc_number", &TrackRow::disc_number)
+        .def_ro("play_count", &TrackRow::play_count)
+        .def_ro("sample_depth", &TrackRow::sample_depth)
+        // Additional string fields
         .def_ro("isrc", &TrackRow::isrc)
+        .def_ro("texter", &TrackRow::texter)
         .def_ro("message", &TrackRow::message)
+        .def_ro("kuvo_public", &TrackRow::kuvo_public)
+        .def_ro("autoload_hot_cues", &TrackRow::autoload_hot_cues)
         .def_ro("date_added", &TrackRow::date_added)
         .def_ro("release_date", &TrackRow::release_date)
         .def_ro("mix_name", &TrackRow::mix_name)
@@ -176,7 +185,7 @@ NB_MODULE(crate_digger, m) {
         .def_ro("analyze_date", &TrackRow::analyze_date)
         .def_ro("filename", &TrackRow::filename)
         // Computed property
-        .def_prop_ro("bpm", [](const TrackRow& t) { return t.bpm_100x / 100.0; })
+        .def_prop_ro("bpm", &TrackRow::bpm)
         .def("__repr__", [](const TrackRow& t) {
             return "TrackRow(id=" + std::to_string(t.id.value) +
                    ", title=\"" + t.title + "\")";
@@ -219,9 +228,18 @@ NB_MODULE(crate_digger, m) {
     nb::class_<TagRow>(m, "TagRow")
         .def_ro("id", &TagRow::id)
         .def_ro("name", &TagRow::name)
+        .def_ro("category_id", &TagRow::category_id)
+        .def_ro("category_pos", &TagRow::category_pos)
+        .def_ro("is_category", &TagRow::is_category)
         .def("__repr__", [](const TagRow& t) {
-            return "TagRow(id=" + std::to_string(t.id.value) +
-                   ", name=\"" + t.name + "\")";
+            std::string result = t.is_category ? "Category" : "TagRow";
+            result += "(id=" + std::to_string(t.id.value) +
+                   ", name=\"" + t.name + "\"";
+            if (!t.is_category && t.category_id.value != 0) {
+                result += ", category=" + std::to_string(t.category_id.value);
+            }
+            result += ")";
+            return result;
         });
 
     // ========================================================================
@@ -258,6 +276,154 @@ NB_MODULE(crate_digger, m) {
             }
             result += ")";
             return result;
+        });
+
+    // ========================================================================
+    // Beat Grid Types
+    // ========================================================================
+
+    nb::class_<BeatEntry>(m, "BeatEntry")
+        .def_ro("beat_number", &BeatEntry::beat_number)
+        .def_ro("tempo_100x", &BeatEntry::tempo_100x)
+        .def_ro("time_ms", &BeatEntry::time_ms)
+        .def_prop_ro("bpm", &BeatEntry::bpm)
+        .def_prop_ro("time_seconds", &BeatEntry::time_seconds)
+        .def("__repr__", [](const BeatEntry& b) {
+            return "BeatEntry(beat=" + std::to_string(b.beat_number) +
+                   ", bpm=" + std::to_string(b.bpm()) +
+                   ", time_ms=" + std::to_string(b.time_ms) + ")";
+        });
+
+    nb::class_<BeatGrid>(m, "BeatGrid")
+        .def_ro("beats", &BeatGrid::beats)
+        .def("empty", &BeatGrid::empty)
+        .def("__len__", &BeatGrid::size)
+        .def("__getitem__", [](const BeatGrid& bg, size_t idx) -> const BeatEntry& {
+            if (idx >= bg.size()) {
+                throw nb::index_error("BeatGrid index out of range");
+            }
+            return bg[idx];
+        })
+        .def("find_beat_at", &BeatGrid::find_beat_at, nb::arg("time_ms"),
+             "Find beat nearest to given time (binary search)")
+        .def("get_beats_in_range", &BeatGrid::get_beats_in_range,
+             nb::arg("start_ms"), nb::arg("end_ms"),
+             "Get beats within time range")
+        .def("average_bpm", &BeatGrid::average_bpm,
+             "Get average BPM of all beats")
+        .def("__repr__", [](const BeatGrid& bg) {
+            return "BeatGrid(beats=" + std::to_string(bg.size()) +
+                   ", avg_bpm=" + std::to_string(bg.average_bpm()) + ")";
+        });
+
+    // ========================================================================
+    // Waveform Types
+    // ========================================================================
+
+    nb::enum_<WaveformStyle>(m, "WaveformStyle")
+        .value("Blue", WaveformStyle::Blue)
+        .value("RGB", WaveformStyle::RGB)
+        .value("ThreeBand", WaveformStyle::ThreeBand);
+
+    nb::class_<WaveformData>(m, "WaveformData")
+        .def_ro("style", &WaveformData::style)
+        .def_ro("entry_count", &WaveformData::entry_count)
+        .def_ro("bytes_per_entry", &WaveformData::bytes_per_entry)
+        .def("empty", &WaveformData::empty)
+        .def("__len__", &WaveformData::size)
+        .def("raw_size", &WaveformData::raw_size)
+        .def("height_at", &WaveformData::height_at, nb::arg("idx"),
+             "Get waveform height at position (0-31)")
+        .def("color_at", &WaveformData::color_at, nb::arg("idx"),
+             "Get color at position for RGB waveforms (returns 0xRRGGBB)")
+        .def("bands_at", &WaveformData::bands_at, nb::arg("idx"),
+             "Get 3-band values (low, mid, high) for ThreeBand waveforms")
+        .def("raw_bytes", [](const WaveformData& w) {
+            return nb::bytes(reinterpret_cast<const char*>(w.raw_data()), w.raw_size());
+        }, "Get raw waveform data as bytes")
+        .def("__repr__", [](const WaveformData& w) {
+            std::string style_str(waveform_style_to_string(w.style));
+            return "WaveformData(style=" + style_str +
+                   ", entries=" + std::to_string(w.entry_count) + ")";
+        });
+
+    nb::class_<TrackWaveforms>(m, "TrackWaveforms")
+        .def_ro("preview", &TrackWaveforms::preview)
+        .def_ro("detail", &TrackWaveforms::detail)
+        .def_ro("color_preview", &TrackWaveforms::color_preview)
+        .def("has_any", &TrackWaveforms::has_any)
+        .def("__repr__", [](const TrackWaveforms& w) {
+            std::string parts;
+            if (w.preview) parts += "preview";
+            if (w.detail) {
+                if (!parts.empty()) parts += ",";
+                parts += "detail";
+            }
+            if (w.color_preview) {
+                if (!parts.empty()) parts += ",";
+                parts += "color_preview";
+            }
+            if (parts.empty()) parts = "none";
+            return "TrackWaveforms(" + parts + ")";
+        });
+
+    // ========================================================================
+    // Song Structure Types
+    // ========================================================================
+
+    nb::enum_<TrackMood>(m, "TrackMood")
+        .value("High", TrackMood::High)
+        .value("Mid", TrackMood::Mid)
+        .value("Low", TrackMood::Low);
+
+    nb::enum_<TrackBank>(m, "TrackBank")
+        .value("Default", TrackBank::Default)
+        .value("Cool", TrackBank::Cool)
+        .value("Natural", TrackBank::Natural)
+        .value("Hot", TrackBank::Hot)
+        .value("Subtle", TrackBank::Subtle)
+        .value("Warm", TrackBank::Warm)
+        .value("Vivid", TrackBank::Vivid)
+        .value("Club1", TrackBank::Club1)
+        .value("Club2", TrackBank::Club2);
+
+    nb::class_<PhraseEntry>(m, "PhraseEntry")
+        .def_ro("index", &PhraseEntry::index)
+        .def_ro("beat", &PhraseEntry::beat)
+        .def_ro("kind", &PhraseEntry::kind)
+        .def_ro("end_beat", &PhraseEntry::end_beat)
+        .def_ro("k1", &PhraseEntry::k1)
+        .def_ro("k2", &PhraseEntry::k2)
+        .def_ro("k3", &PhraseEntry::k3)
+        .def_ro("has_fill", &PhraseEntry::has_fill)
+        .def_ro("fill_beat", &PhraseEntry::fill_beat)
+        .def("phrase_name", &PhraseEntry::phrase_name, nb::arg("mood"),
+             "Get human-readable phrase name based on mood")
+        .def("__repr__", [](const PhraseEntry& p) {
+            return "PhraseEntry(index=" + std::to_string(p.index) +
+                   ", beat=" + std::to_string(p.beat) +
+                   ", kind=" + std::to_string(p.kind) + ")";
+        });
+
+    nb::class_<SongStructure>(m, "SongStructure")
+        .def_ro("mood", &SongStructure::mood)
+        .def_ro("bank", &SongStructure::bank)
+        .def_ro("end_beat", &SongStructure::end_beat)
+        .def_ro("phrases", &SongStructure::phrases)
+        .def("empty", &SongStructure::empty)
+        .def("__len__", &SongStructure::size)
+        .def("__getitem__", [](const SongStructure& s, size_t idx) -> const PhraseEntry& {
+            if (idx >= s.size()) {
+                throw nb::index_error("SongStructure index out of range");
+            }
+            return s[idx];
+        })
+        .def("find_phrase_at_beat", &SongStructure::find_phrase_at_beat, nb::arg("beat"),
+             "Find phrase index at given beat")
+        .def("__repr__", [](const SongStructure& s) {
+            std::string mood_str(track_mood_to_string(s.mood));
+            return "SongStructure(mood=" + mood_str +
+                   ", phrases=" + std::to_string(s.size()) + ")";
         });
 
     // ========================================================================
@@ -330,6 +496,18 @@ NB_MODULE(crate_digger, m) {
         .def("all_tag_ids", &Database::all_tag_ids)
         .def_prop_ro("tag_count", &Database::tag_count)
 
+        // Tag category access (exportExt.pdb)
+        .def("get_category", &Database::get_category, nb::arg("category_id"),
+             "Get category by ID")
+        .def("find_categories_by_name", &Database::find_categories_by_name, nb::arg("name"),
+             "Find categories by name")
+        .def("category_order", &Database::category_order, nb::rv_policy::reference,
+             "Get all category IDs in display order")
+        .def("get_tags_in_category", &Database::get_tags_in_category, nb::arg("category_id"),
+             "Get tags in a category, in display order")
+        .def("all_category_ids", &Database::all_category_ids)
+        .def_prop_ro("category_count", &Database::category_count)
+
         // Cue point access (ANLZ files)
         .def("load_cue_points", &Database::load_cue_points, nb::arg("anlz_dir"),
              "Load cue points from an ANLZ directory")
@@ -342,6 +520,42 @@ NB_MODULE(crate_digger, m) {
         .def("find_cue_points_by_filename", &Database::find_cue_points_by_filename, nb::arg("filename"),
              "Find cue points by filename pattern")
         .def_prop_ro("cue_point_track_count", &Database::cue_point_track_count)
+
+        // Beat grid access (ANLZ files)
+        .def("get_beat_grid", &Database::get_beat_grid, nb::arg("track_path"),
+             nb::rv_policy::reference,
+             "Get beat grid for a track by its file path")
+        .def("get_beat_grid_for_track", &Database::get_beat_grid_for_track, nb::arg("track_id"),
+             nb::rv_policy::reference,
+             "Get beat grid for a track by ID")
+        .def("find_beat_grid_by_filename", &Database::find_beat_grid_by_filename, nb::arg("filename"),
+             nb::rv_policy::reference,
+             "Find beat grid by filename pattern")
+        .def_prop_ro("beat_grid_track_count", &Database::beat_grid_track_count)
+
+        // Waveform access (ANLZ files)
+        .def("get_waveforms", &Database::get_waveforms, nb::arg("track_path"),
+             nb::rv_policy::reference,
+             "Get waveforms for a track by its file path")
+        .def("get_waveforms_for_track", &Database::get_waveforms_for_track, nb::arg("track_id"),
+             nb::rv_policy::reference,
+             "Get waveforms for a track by ID")
+        .def("find_waveforms_by_filename", &Database::find_waveforms_by_filename, nb::arg("filename"),
+             nb::rv_policy::reference,
+             "Find waveforms by filename pattern")
+        .def_prop_ro("waveform_track_count", &Database::waveform_track_count)
+
+        // Song structure access (ANLZ files)
+        .def("get_song_structure", &Database::get_song_structure, nb::arg("track_path"),
+             nb::rv_policy::reference,
+             "Get song structure for a track by its file path")
+        .def("get_song_structure_for_track", &Database::get_song_structure_for_track, nb::arg("track_id"),
+             nb::rv_policy::reference,
+             "Get song structure for a track by ID")
+        .def("find_song_structure_by_filename", &Database::find_song_structure_by_filename, nb::arg("filename"),
+             nb::rv_policy::reference,
+             "Find song structure by filename pattern")
+        .def_prop_ro("song_structure_track_count", &Database::song_structure_track_count)
 
         // Bulk access (for NumPy/AI)
         .def("all_track_ids", &Database::all_track_ids)

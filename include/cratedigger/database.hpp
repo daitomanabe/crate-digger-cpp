@@ -193,6 +193,28 @@ public:
     [[nodiscard]] size_t tag_count() const;
 
     // ========================================================================
+    // Tag Category Access (exportExt.pdb)
+    // ========================================================================
+
+    /// Get category by ID
+    [[nodiscard]] std::optional<TagRow> get_category(TagId id) const;
+
+    /// Find categories by name (case-insensitive)
+    [[nodiscard]] std::vector<TagId> find_categories_by_name(std::string_view name) const;
+
+    /// Get all category IDs in display order
+    [[nodiscard]] const std::vector<TagId>& category_order() const;
+
+    /// Get tags in a category, in display order
+    [[nodiscard]] std::vector<TagId> get_tags_in_category(TagId category_id) const;
+
+    /// Get all category IDs
+    [[nodiscard]] std::vector<TagId> all_category_ids() const;
+
+    /// Get category count
+    [[nodiscard]] size_t category_count() const;
+
+    // ========================================================================
     // Cue Point Access (requires loading ANLZ files)
     // ========================================================================
 
@@ -213,6 +235,54 @@ public:
 
     /// Get number of tracks with loaded cue points
     [[nodiscard]] size_t cue_point_track_count() const;
+
+    // ========================================================================
+    // Beat Grid Access (requires loading ANLZ files)
+    // ========================================================================
+
+    /// Get beat grid for a track by its file path
+    [[nodiscard]] const BeatGrid* get_beat_grid(const std::string& track_path) const;
+
+    /// Get beat grid for a track by ID (uses track's file_path)
+    [[nodiscard]] const BeatGrid* get_beat_grid_for_track(TrackId id) const;
+
+    /// Get beat grid by matching filename
+    [[nodiscard]] const BeatGrid* find_beat_grid_by_filename(const std::string& filename) const;
+
+    /// Get number of tracks with loaded beat grids
+    [[nodiscard]] size_t beat_grid_track_count() const;
+
+    // ========================================================================
+    // Waveform Access (requires loading ANLZ files)
+    // ========================================================================
+
+    /// Get waveforms for a track by its file path
+    [[nodiscard]] const TrackWaveforms* get_waveforms(const std::string& track_path) const;
+
+    /// Get waveforms for a track by ID (uses track's file_path)
+    [[nodiscard]] const TrackWaveforms* get_waveforms_for_track(TrackId id) const;
+
+    /// Get waveforms by matching filename
+    [[nodiscard]] const TrackWaveforms* find_waveforms_by_filename(const std::string& filename) const;
+
+    /// Get number of tracks with loaded waveforms
+    [[nodiscard]] size_t waveform_track_count() const;
+
+    // ========================================================================
+    // Song Structure Access (requires loading ANLZ files)
+    // ========================================================================
+
+    /// Get song structure for a track by its file path
+    [[nodiscard]] const SongStructure* get_song_structure(const std::string& track_path) const;
+
+    /// Get song structure for a track by ID (uses track's file_path)
+    [[nodiscard]] const SongStructure* get_song_structure_for_track(TrackId id) const;
+
+    /// Get song structure by matching filename
+    [[nodiscard]] const SongStructure* find_song_structure_by_filename(const std::string& filename) const;
+
+    /// Get number of tracks with loaded song structure
+    [[nodiscard]] size_t song_structure_track_count() const;
 
     // ========================================================================
     // Bulk Access (for Python/NumPy interop via std::span)
