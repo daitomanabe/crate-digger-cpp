@@ -2,16 +2,25 @@
 
 A C++20 library for parsing rekordbox database exports (export.pdb and exportExt.pdb files) and analysis files (ANLZ).
 
-This is a C++ port of the original [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library by Deep Symmetry.
+This is a **complete C++20 port** of the original [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library by [Deep Symmetry](https://github.com/Deep-Symmetry), developed by [Daito Manabe](https://github.com/daitomanabe) 
 
 ## Features
 
+### Database Parsing (export.pdb / exportExt.pdb)
 - Parse rekordbox `export.pdb` database files
-- Parse rekordbox `exportExt.pdb` files (Tags support)
-- Parse ANLZ files for Cue Points and Hot Cues
-- Access tracks, artists, albums, genres, colors, labels, keys, tags, and playlists
+- Parse rekordbox `exportExt.pdb` files (Tags and Categories support)
+- Access tracks, artists, albums, genres, colors, labels, keys, artwork, and playlists
+- Tag hierarchy with categories (rekordbox 6.x+)
 - Primary and secondary index lookups
 - Range search (BPM, duration, year, rating)
+
+### ANLZ File Parsing
+- **Cue Points**: Memory cues and Hot Cues with colors and comments
+- **Beat Grid**: Beat positions with tempo information for sync
+- **Waveforms**: Preview, scroll, color preview, color scroll, and 3-band waveforms
+- **Song Structure**: Phrase analysis with mood and bank information
+
+### Integration
 - Bulk data retrieval for NumPy integration
 - Handle Pattern design (strongly-typed integer IDs)
 - Safety validation functions for data integrity
@@ -79,9 +88,32 @@ auto fast_tracks = db.find_tracks_by_bpm_range(140.0f, 180.0f);
 // Bulk data for NumPy
 auto all_bpms = db.get_all_bpms();  // Returns vector of {id, bpm}
 
-// Load Cue Points from ANLZ directory
+// Load ANLZ data (cue points, beat grids, waveforms, song structure)
 db.load_cue_points("path/to/PIONEER/USBANLZ");
+
+// Cue Points
 auto cues = db.get_cue_points_for_track(TrackId{123});
+
+// Beat Grid
+if (auto* grid = db.get_beat_grid_for_track(TrackId{123})) {
+    for (const auto& beat : grid->beats) {
+        std::cout << "Beat at " << beat.time_ms << "ms, BPM: " << beat.tempo / 100.0f << std::endl;
+    }
+}
+
+// Waveforms
+if (auto* waveforms = db.get_waveforms_for_track(TrackId{123})) {
+    if (waveforms->has_color_scroll()) {
+        // Access color scroll waveform data
+    }
+}
+
+// Song Structure (phrase analysis)
+if (auto* structure = db.get_song_structure_for_track(TrackId{123})) {
+    for (const auto& phrase : structure->entries) {
+        std::cout << "Phrase at beat " << phrase.beat << std::endl;
+    }
+}
 ```
 
 ### CLI Tool
@@ -118,11 +150,39 @@ for tag_id in db_ext.all_tag_ids():
     tag = db_ext.get_tag(tag_id)
     print(f"Tag: {tag.name}")
 
-# Cue Points
+# Load ANLZ data
 db.load_cue_points("path/to/PIONEER/USBANLZ")
+
+# Cue Points
 cues = db.get_cue_points_for_track(track_id)
 for cue in cues:
     print(f"Cue at {cue.time_seconds()}s - {cue.comment}")
+
+# Beat Grid
+grid = db.get_beat_grid_for_track(track_id)
+if grid:
+    for beat in grid.beats:
+        print(f"Beat at {beat.time_ms}ms, BPM: {beat.tempo / 100}")
+
+# Waveforms
+waveforms = db.get_waveforms_for_track(track_id)
+if waveforms and waveforms.has_color_scroll():
+    data = waveforms.color_scroll
+    print(f"Waveform with {len(data.data)} entries")
+
+# Song Structure
+structure = db.get_song_structure_for_track(track_id)
+if structure:
+    for phrase in structure.entries:
+        print(f"Phrase: {phrase.mood.name} at beat {phrase.beat}")
+
+# Tag Categories (exportExt.pdb)
+for cat_id in db_ext.all_category_ids():
+    cat = db_ext.get_category(cat_id)
+    print(f"Category: {cat.name}")
+    for tag_id in db_ext.get_tags_in_category(cat_id):
+        tag = db_ext.get_tag(tag_id)
+        print(f"  Tag: {tag.name}")
 
 # Safety validation
 validated_bpm = cratedigger.validate_bpm(999.0)  # Returns 300.0 (MAX_BPM)
@@ -164,8 +224,17 @@ std::string schema = cratedigger::describe_api();
 - `LabelRow` - Label name
 - `KeyRow` - Musical key name
 - `ArtworkRow` - Artwork path
-- `TagRow` - Tag name (exportExt.pdb)
+- `TagRow` - Tag name with category hierarchy (exportExt.pdb)
 - `CuePoint` - Cue point/hot cue information
+
+### ANLZ Types
+
+- `BeatEntry` - Single beat position with tempo
+- `BeatGrid` - Collection of beat entries for a track
+- `WaveformData` - Waveform samples with style information
+- `TrackWaveforms` - All waveform types for a track (preview, scroll, color, 3-band)
+- `PhraseEntry` - Song structure phrase with mood and bank
+- `SongStructure` - Phrase analysis for a track
 
 ### Safety Limits
 
@@ -203,19 +272,24 @@ Or run individual tests:
 python3 ../tests/golden_test.py
 ```
 
+## Credits
+
+**C++20 Port**
+- [Daito Manabe](https://github.com/daitomanabe)
+
+**Original Implementation**
+- [Deep Symmetry, LLC](https://github.com/Deep-Symmetry) - [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library
+
+**Reverse Engineering**
+- [@henrybetts](https://github.com/henrybetts), [@flesniak](https://github.com/flesniak) - Rekordbox format analysis
+
 ## License
 
 Eclipse Public License - v 2.0
 
-Copyright (c) 2025 Daito Manabe / Rhizomatiks
+Copyright (c) 2025 Daito Manabe
 
-This is a C++ port of the original Crate Digger Java library.
+This is a C++20 port of the original Crate Digger Java library.
 Original Java implementation Copyright (c) 2018-2024 Deep Symmetry, LLC.
 
 See [LICENSE](LICENSE) for details.
-
-## Credits
-
-- [Deep Symmetry, LLC](https://github.com/Deep-Symmetry) - Original Java implementation
-- [@henrybetts](https://github.com/henrybetts), [@flesniak](https://github.com/flesniak) - Reverse engineering of rekordbox format
-- [Daito Manabe](https://github.com/daitomanabe) / [Rhizomatiks](https://rhizomatiks.com) - C++ port

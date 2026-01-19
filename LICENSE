@@ -1,3 +1,13 @@
+Crate Digger C++20
+==================
+
+Copyright (c) 2025 Daito Manabe
+https://github.com/daitomanabe
+
+A complete C++20 port of the Crate Digger Java library.
+
+-------------------------------------------------------------------------------
+
 Eclipse Public License - v 2.0
 
     THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECLIPSE
@@ -13,13 +23,8 @@ License 3, https://opensource.org/licenses/LGPL-3.0
 
 -------------------------------------------------------------------------------
 
-Crate Digger C++ Port
+Original Java Implementation:
 
-Copyright (c) 2025 Daito Manabe / Rhizomatiks
-
-This is a C++20 port of the original Crate Digger Java library.
-
-Original Java implementation:
 Copyright (c) 2018-2024 Deep Symmetry, LLC
 https://github.com/Deep-Symmetry/crate-digger
 
@@ -27,10 +32,18 @@ This work is a derivative work based on the original Crate Digger project,
 which is licensed under the Eclipse Public License 2.0. This C++ port
 maintains the same license terms.
 
+-------------------------------------------------------------------------------
+
 Contributors:
-- Deep Symmetry, LLC (original Java implementation)
-- @henrybetts, @flesniak (reverse engineering of rekordbox format)
-- Daito Manabe / Rhizomatiks (C++20 port)
+
+C++20 Port:
+- Daito Manabe
+
+Original Implementation:
+- Deep Symmetry, LLC
+
+Reverse Engineering:
+- @henrybetts, @flesniak (rekordbox format analysis)
 
 -------------------------------------------------------------------------------
 
