@@ -18,7 +18,7 @@ std::string_view to_string(ParamType type) {
 
 namespace {
 
-// Helper to create ParamSchema (C++17 compatible)
+// Helper to create ParamSchema
 ParamSchema make_param(
     const std::string& name,
     ParamType type,
@@ -35,7 +35,7 @@ ParamSchema make_param(
     return p;
 }
 
-// Helper to create CommandSchema (C++17 compatible)
+// Helper to create CommandSchema
 CommandSchema make_command(
     const std::string& name,
     const std::string& description,
@@ -50,7 +50,7 @@ CommandSchema make_command(
     return cmd;
 }
 
-// Helper to create TensorShape (C++17 compatible)
+// Helper to create TensorShape
 TensorShape make_tensor(
     const std::string& name,
     std::vector<int> dims,

@@ -26,7 +26,7 @@ namespace cratedigger {
 // Handle Types (MUST: Integer IDs for object management)
 // ============================================================================
 
-/// Macro to define comparison operators for Handle types (C++17 compatible)
+/// Macro to define comparison operators for Handle types
 #define CRATEDIGGER_DEFINE_HANDLE_OPS(TypeName) \
     bool operator==(const TypeName& other) const { return value == other.value; } \
     bool operator!=(const TypeName& other) const { return value != other.value; } \
