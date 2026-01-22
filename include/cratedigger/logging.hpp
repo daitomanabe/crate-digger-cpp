@@ -6,7 +6,7 @@
  * Machine-readable logging in JSON Lines format.
  * Error format: {"error": "...", "source": "file:line"}
  *
- * C++20 implementation using std::format and std::source_location
+ * C++17 implementation
  */
 
 #include "types.hpp"
@@ -15,8 +15,7 @@
 #include <functional>
 #include <mutex>
 #include <iostream>
-#include <format>
-#include <source_location>
+#include <sstream>
 
 namespace cratedigger {
 
@@ -28,8 +27,18 @@ enum class LogLevel {
     Error
 };
 
-/// Source location alias (C++20 std::source_location)
-using SourceLocation = std::source_location;
+/// Source location struct (C++17 compatible)
+struct SourceLocation {
+    const char* file{"unknown"};
+    int line{0};
+    const char* function{"unknown"};
+
+    const char* file_name() const { return file; }
+};
+
+/// Macro to capture current source location
+#define CRATEDIGGER_CURRENT_LOCATION() \
+    cratedigger::SourceLocation{__FILE__, __LINE__, __func__}
 
 /// Log output callback type
 using LogCallback = std::function<void(LogLevel, std::string_view)>;
@@ -61,22 +70,22 @@ public:
     void log(LogLevel level, const SourceLocation& loc, const std::string& message);
 
     /// Debug log
-    void debug(const std::string& msg, SourceLocation loc = SourceLocation::current()) {
+    void debug(const std::string& msg, SourceLocation loc = SourceLocation{}) {
         log(LogLevel::Debug, loc, msg);
     }
 
     /// Info log
-    void info(const std::string& msg, SourceLocation loc = SourceLocation::current()) {
+    void info(const std::string& msg, SourceLocation loc = SourceLocation{}) {
         log(LogLevel::Info, loc, msg);
     }
 
     /// Warning log
-    void warn(const std::string& msg, SourceLocation loc = SourceLocation::current()) {
+    void warn(const std::string& msg, SourceLocation loc = SourceLocation{}) {
         log(LogLevel::Warning, loc, msg);
     }
 
     /// Error log
-    void error(const std::string& msg, SourceLocation loc = SourceLocation::current()) {
+    void error(const std::string& msg, SourceLocation loc = SourceLocation{}) {
         log(LogLevel::Error, loc, msg);
     }
 
@@ -90,23 +99,38 @@ private:
     std::mutex mutex_;
 };
 
-/// Convenience macros for logging with format (C++20)
-#define LOG_DEBUG(msg) cratedigger::Logger::instance().debug(msg)
-#define LOG_INFO(...) cratedigger::Logger::instance().info(std::format(__VA_ARGS__))
-#define LOG_WARN(...) cratedigger::Logger::instance().warn(std::format(__VA_ARGS__))
-#define LOG_ERROR(...) cratedigger::Logger::instance().error(std::format(__VA_ARGS__))
+/// Convenience macros for logging (C++17)
+#define LOG_DEBUG(msg) cratedigger::Logger::instance().debug(msg, CRATEDIGGER_CURRENT_LOCATION())
+#define LOG_INFO(msg) cratedigger::Logger::instance().info(msg, CRATEDIGGER_CURRENT_LOCATION())
+#define LOG_WARN(msg) cratedigger::Logger::instance().warn(msg, CRATEDIGGER_CURRENT_LOCATION())
+#define LOG_ERROR(msg) cratedigger::Logger::instance().error(msg, CRATEDIGGER_CURRENT_LOCATION())
 
-/// Create Error with source location (C++20)
-[[nodiscard]] inline Error make_error(
+/// Create Error with source location (C++17)
+#define CRATEDIGGER_MAKE_ERROR(code, message) \
+    cratedigger::make_error_impl(code, message, __FILE__, __LINE__)
+
+[[nodiscard]] inline Error make_error_impl(
     ErrorCode code,
     std::string message,
-    SourceLocation loc = SourceLocation::current()
+    const char* file,
+    int line
 ) {
     Error err;
     err.code = code;
     err.message = std::move(message);
-    err.source_file = loc.file_name();
-    err.source_line = static_cast<int>(loc.line());
+    err.source_file = file;
+    err.source_line = line;
+    return err;
+}
+
+/// Helper for simple error creation without location
+[[nodiscard]] inline Error make_error(
+    ErrorCode code,
+    std::string message
+) {
+    Error err;
+    err.code = code;
+    err.message = std::move(message);
     return err;
 }
 

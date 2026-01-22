@@ -1,6 +1,6 @@
 # Crate Digger IR Schema
 
-Internal Representation Schema for Crate Digger C++20 Port.
+Internal Representation Schema for Crate Digger C++17 Port.
 
 Per INTRODUCTION_JAVA_TO_CPP.md Section 1.2:
 - MUST: No Magic Numbers - All constants defined here

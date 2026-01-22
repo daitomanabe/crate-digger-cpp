@@ -2,7 +2,7 @@
 #include "cratedigger/logging.hpp"
 #include <cstring>
 #include <algorithm>
-#include <format>
+#include <sstream>
 
 namespace cratedigger {
 
@@ -86,7 +86,7 @@ Result<RekordboxPdb> RekordboxPdb::open(const std::filesystem::path& path, bool 
     if (!file) {
         return make_error(
             ErrorCode::FileNotFound,
-            std::format("Cannot open file: {}", path.string())
+            "Cannot open file: " + path.string()
         );
     }
 
@@ -118,7 +118,7 @@ Result<RekordboxPdb> RekordboxPdb::open(const std::filesystem::path& path, bool 
     if (pdb.page_size_ == 0 || pdb.page_size_ > 65536) {
         return make_error(
             ErrorCode::InvalidFileFormat,
-            std::format("Invalid page size: {}", pdb.page_size_)
+            "Invalid page size: " + std::to_string(pdb.page_size_)
         );
     }
 
@@ -147,7 +147,7 @@ Result<RekordboxPdb> RekordboxPdb::open(const std::filesystem::path& path, bool 
         offset += 16;
     }
 
-    LOG_INFO("Opened PDB file: {} tables, page size: {}", pdb.table_count_, pdb.page_size_);
+    LOG_INFO("Opened PDB file: " + std::to_string(pdb.table_count_) + " tables, page size: " + std::to_string(pdb.page_size_));
 
     return pdb;
 }
@@ -178,7 +178,7 @@ RekordboxPdb& RekordboxPdb::operator=(RekordboxPdb&& other) noexcept {
 
 RekordboxPdb::~RekordboxPdb() = default;
 
-std::span<const PdbTable> RekordboxPdb::tables() const {
+const std::vector<PdbTable>& RekordboxPdb::tables() const {
     return tables_;
 }
 
@@ -188,7 +188,7 @@ Result<PdbPage> RekordboxPdb::read_page(uint32_t page_index) const {
     if (page_offset + page_size_ > file_data_.size()) {
         return make_error(
             ErrorCode::CorruptedData,
-            std::format("Page {} extends past end of file", page_index)
+            "Page " + std::to_string(page_index) + " extends past end of file"
         );
     }
 
@@ -258,11 +258,11 @@ std::string RekordboxPdb::read_string(size_t offset) const {
     );
 }
 
-std::span<const uint8_t> RekordboxPdb::data_at(size_t offset, size_t size) const {
+std::pair<const uint8_t*, size_t> RekordboxPdb::data_at(size_t offset, size_t size) const {
     if (offset + size > file_data_.size()) {
-        return {};
+        return {nullptr, 0};
     }
-    return std::span<const uint8_t>(file_data_.data() + offset, size);
+    return {file_data_.data() + offset, size};
 }
 
 } // namespace cratedigger

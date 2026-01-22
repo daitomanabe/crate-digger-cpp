@@ -1,10 +1,10 @@
-Crate Digger C++20
+Crate Digger C++17
 ==================
 
 Copyright (c) 2025 Daito Manabe
 https://github.com/daitomanabe
 
-A complete C++20 port of the Crate Digger Java library.
+A complete C++17 port of the Crate Digger Java library.
 
 -------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ maintains the same license terms.
 
 Contributors:
 
-C++20 Port:
+C++17 Port:
 - Daito Manabe
 
 Original Implementation:

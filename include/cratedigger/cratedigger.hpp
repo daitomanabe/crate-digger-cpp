@@ -7,13 +7,13 @@
  * and track analysis files.
  *
  * Design Philosophy (per INTRODUCTION_JAVA_TO_CPP.md):
- * - Pure C++20 (Standard Library Only, No Framework Headers)
+ * - Pure C++17 (Standard Library Only, No Framework Headers)
  * - Headless (No GUI/Window dependencies)
  * - Deterministic (Time Injection, Random Injection)
  * - AI-Friendly (Self-Description API, Structured Logging)
  * - Python-First (nanobind for NumPy interop)
  *
- * @author Daito Manabe / Rhizomatiks
+ * @author Daito Manabe
  * @version 1.0.0
  */
 

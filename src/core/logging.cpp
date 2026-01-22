@@ -2,7 +2,6 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
-#include <format>
 
 namespace cratedigger {
 
@@ -56,15 +55,15 @@ void Logger::log(LogLevel level, const SourceLocation& loc, const std::string& m
     std::ostringstream timestamp_stream;
     timestamp_stream << std::put_time(std::gmtime(&time), "%FT%TZ");
 
-    // Build JSON Lines output using std::format (C++20)
-    std::string json_line = std::format(
-        R"({{"timestamp":"{}","level":"{}","message":"{}","source":"{}:{}"}})",
-        timestamp_stream.str(),
-        level_to_string(level),
-        escape_json_string(message),
-        loc.file_name(),
-        loc.line()
-    );
+    // Build JSON Lines output (C++17)
+    std::ostringstream json_stream;
+    json_stream << R"({"timestamp":")" << timestamp_stream.str()
+                << R"(","level":")" << level_to_string(level)
+                << R"(","message":")" << escape_json_string(message)
+                << R"(","source":")" << loc.file_name() << ":" << loc.line
+                << R"("})";
+
+    std::string json_line = json_stream.str();
 
     std::lock_guard<std::mutex> lock(mutex_);
     if (callback_) {

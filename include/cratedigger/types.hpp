@@ -1,10 +1,9 @@
 #pragma once
 /**
  * @file types.hpp
- * @brief Core types for Crate Digger C++ (C++20)
+ * @brief Core types for Crate Digger C++ (C++17)
  *
  * Design Rules (per INTRODUCTION_JAVA_TO_CPP.md):
- * - MUST: std::span for array access
  * - MUST: Handle Pattern (integer IDs, not raw pointers)
  * - MUST: No Magic Numbers
  * - MUST: Deterministic (Time Injection, Random Injection)
@@ -13,7 +12,6 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <span>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -121,7 +119,7 @@ struct Error {
     int source_line{0};
 };
 
-/// Result type for operations that may fail (C++20 compatible alternative to std::expected)
+/// Result type for operations that may fail (C++17 compatible alternative to std::expected)
 template<typename T>
 class Result {
 public:

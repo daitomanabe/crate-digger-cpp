@@ -1,7 +1,7 @@
 #pragma once
 /**
  * @file rekordbox_pdb.hpp
- * @brief Rekordbox PDB binary parser (C++20 port of Kaitai Struct definition)
+ * @brief Rekordbox PDB binary parser (C++17 port of Kaitai Struct definition)
  *
  * Parses export.pdb and exportExt.pdb files from rekordbox.
  * Based on reverse engineering by @henrybetts, @flesniak, and Deep Symmetry.
@@ -12,7 +12,6 @@
 #include <memory>
 #include <cstdint>
 #include <vector>
-#include <span>
 
 namespace cratedigger {
 
@@ -250,7 +249,7 @@ public:
     [[nodiscard]] bool is_ext() const { return is_ext_; }
 
     /// Get table info
-    [[nodiscard]] std::span<const PdbTable> tables() const;
+    [[nodiscard]] const std::vector<PdbTable>& tables() const;
 
     /// Read a page at given index
     [[nodiscard]] Result<PdbPage> read_page(uint32_t page_index) const;
@@ -258,8 +257,8 @@ public:
     /// Parse a device SQL string from the file
     [[nodiscard]] std::string read_string(size_t offset) const;
 
-    /// Get raw data at offset
-    [[nodiscard]] std::span<const uint8_t> data_at(size_t offset, size_t size) const;
+    /// Get raw data at offset (returns pointer and size, empty pair if out of bounds)
+    [[nodiscard]] std::pair<const uint8_t*, size_t> data_at(size_t offset, size_t size) const;
 
 private:
     RekordboxPdb() = default;

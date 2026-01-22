@@ -3,7 +3,8 @@
 #include <fstream>
 #include <cstring>
 #include <algorithm>
-#include <format>
+#include <sstream>
+#include <iomanip>
 
 namespace cratedigger {
 
@@ -73,7 +74,7 @@ Result<RekordboxAnlz> RekordboxAnlz::open(const std::filesystem::path& path) {
     if (!file) {
         return make_error(
             ErrorCode::FileNotFound,
-            std::format("Cannot open ANLZ file: {}", path.string())
+            "Cannot open ANLZ file: " + path.string()
         );
     }
 
@@ -99,17 +100,18 @@ Result<RekordboxAnlz> RekordboxAnlz::open(const std::filesystem::path& path) {
     // Verify magic number "PMAI"
     uint32_t magic = read_u32_be(anlz.file_data_.data());
     if (magic != 0x504D4149) {  // "PMAI"
+        std::ostringstream oss;
+        oss << "Invalid ANLZ magic number: 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(8) << magic;
         return make_error(
             ErrorCode::InvalidFileFormat,
-            std::format("Invalid ANLZ magic number: {:08X}", magic)
+            oss.str()
         );
     }
 
     anlz.parse_sections();
     anlz.is_valid_ = true;
 
-    LOG_INFO("Parsed ANLZ file: {} cue points, {} beats",
-             anlz.cue_points_.size(), anlz.beat_grid_.size());
+    LOG_INFO("Parsed ANLZ file: " + std::to_string(anlz.cue_points_.size()) + " cue points, " + std::to_string(anlz.beat_grid_.beats.size()) + " beats");
 
     return anlz;
 }
@@ -541,7 +543,7 @@ void RekordboxAnlz::parse_song_structure(const uint8_t* data, size_t len) {
 
 void CuePointManager::scan_directory(const std::filesystem::path& anlz_dir) {
     if (!std::filesystem::exists(anlz_dir)) {
-        LOG_WARN("ANLZ directory does not exist: {}", anlz_dir.string());
+        LOG_WARN("ANLZ directory does not exist: " + anlz_dir.string());
         return;
     }
 
@@ -559,9 +561,11 @@ void CuePointManager::scan_directory(const std::filesystem::path& anlz_dir) {
         }
     }
 
-    LOG_INFO("Loaded {} ANLZ files: {} cues, {} beats, {} waves, {} structures",
-             loaded, cue_point_index_.size(), beat_grid_index_.size(),
-             waveform_index_.size(), song_structure_index_.size());
+    LOG_INFO("Loaded " + std::to_string(loaded) + " ANLZ files: " +
+             std::to_string(cue_point_index_.size()) + " cues, " +
+             std::to_string(beat_grid_index_.size()) + " beats, " +
+             std::to_string(waveform_index_.size()) + " waves, " +
+             std::to_string(song_structure_index_.size()) + " structures");
 }
 
 void CuePointManager::load_anlz_file(const std::filesystem::path& path) {

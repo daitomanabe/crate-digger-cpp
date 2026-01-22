@@ -1,8 +1,8 @@
-# Crate Digger C++ (C++20)
+# Crate Digger C++ (C++17)
 
-A C++20 library for parsing rekordbox database exports (export.pdb and exportExt.pdb files) and analysis files (ANLZ).
+A C++17 library for parsing rekordbox database exports (export.pdb and exportExt.pdb files) and analysis files (ANLZ).
 
-This is a **complete C++20 port** of the original [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library by [Deep Symmetry](https://github.com/Deep-Symmetry), developed by [Daito Manabe](https://github.com/daitomanabe) 
+This is a **complete C++17 port** of the original [Crate Digger](https://github.com/Deep-Symmetry/crate-digger) Java library by [Deep Symmetry](https://github.com/Deep-Symmetry), developed by [Daito Manabe](https://github.com/daitomanabe) 
 
 ## Features
 
@@ -30,7 +30,7 @@ This is a **complete C++20 port** of the original [Crate Digger](https://github.
 
 ## Requirements
 
-- C++20 compatible compiler (GCC 10+, Clang 12+, MSVC 2019+)
+- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - CMake 3.16+
 - Python 3.8+ (optional, for Python bindings)
 - nanobind (optional, for Python bindings)
@@ -248,13 +248,13 @@ SafetyLimits::MAX_RATING = 5
 
 ## Architecture
 
-The library uses modern C++20 features:
+The library uses modern C++17 features:
 
 - **Handle Pattern**: All entity references use strongly-typed integer IDs
 - **Result<T>**: Error handling without exceptions using `std::variant`
-- **std::span**: Non-owning views for binary data
-- **std::format**: Modern string formatting
-- **std::source_location**: For logging with source location
+- **std::optional**: Safe nullable value handling
+- **std::string_view**: Non-owning string references
+- **std::filesystem**: Cross-platform file system operations
 - **RAII**: Resource management with smart pointers
 
 ## Testing
@@ -274,7 +274,7 @@ python3 ../tests/golden_test.py
 
 ## Credits
 
-**C++20 Port**
+**C++17 Port**
 - [Daito Manabe](https://github.com/daitomanabe)
 
 **Original Implementation**
@@ -289,7 +289,7 @@ Eclipse Public License - v 2.0
 
 Copyright (c) 2025 Daito Manabe
 
-This is a C++20 port of the original Crate Digger Java library.
+This is a C++17 port of the original Crate Digger Java library.
 Original Java implementation Copyright (c) 2018-2024 Deep Symmetry, LLC.
 
 See [LICENSE](LICENSE) for details.

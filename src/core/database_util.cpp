@@ -35,7 +35,7 @@ void DatabaseImpl::scan_table(PageType type, RowHandler handler) {
         while (more_pages) {
             auto page_result = pdb_.read_page(current_page_idx);
             if (!page_result) {
-                LOG_ERROR("Failed to read page {}", current_page_idx);
+                LOG_ERROR("Failed to read page " + std::to_string(current_page_idx));
                 break;
             }
 
@@ -66,7 +66,7 @@ void DatabaseImpl::scan_table(PageType type, RowHandler handler) {
         return;  // Found and processed the table
     }
 
-    LOG_WARN("Table type {} not found", static_cast<int>(type));
+    LOG_WARN("Table type " + std::to_string(static_cast<int>(type)) + " not found");
 }
 
 template<typename RowHandler>
@@ -81,7 +81,7 @@ void scan_table_ext(RekordboxPdb& pdb, PageTypeExt type, RowHandler handler) {
         while (more_pages) {
             auto page_result = pdb.read_page(current_page_idx);
             if (!page_result) {
-                LOG_ERROR("Failed to read page {}", current_page_idx);
+                LOG_ERROR("Failed to read page " + std::to_string(current_page_idx));
                 break;
             }
 
@@ -111,7 +111,7 @@ void scan_table_ext(RekordboxPdb& pdb, PageTypeExt type, RowHandler handler) {
         return;
     }
 
-    LOG_WARN("Table type {} not found", static_cast<int>(type));
+    LOG_WARN("Table type " + std::to_string(static_cast<int>(type)) + " not found");
 }
 
 std::string DatabaseImpl::read_string_at_row(size_t row_base, uint16_t offset) const {
@@ -147,9 +147,9 @@ void DatabaseImpl::build_indices() {
 void DatabaseImpl::index_tracks() {
     scan_table(PageType::Tracks, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawTrackRow));
-        if (data.size() < sizeof(RawTrackRow)) return;
+        if (data.second < sizeof(RawTrackRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawTrackRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawTrackRow*>(data.first);
 
         TrackRow row;
         row.id = TrackId{static_cast<int64_t>(raw->id)};
@@ -219,15 +219,15 @@ void DatabaseImpl::index_tracks() {
         }
     });
 
-    LOG_INFO("Indexed {} tracks", track_index.size());
+    LOG_INFO("Indexed " + std::to_string(track_index.size()) + " tracks");
 }
 
 void DatabaseImpl::index_artists() {
     scan_table(PageType::Artists, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawArtistRow));
-        if (data.size() < sizeof(RawArtistRow)) return;
+        if (data.second < sizeof(RawArtistRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawArtistRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawArtistRow*>(data.first);
 
         ArtistRow row;
         row.id = ArtistId{static_cast<int64_t>(raw->id)};
@@ -236,9 +236,9 @@ void DatabaseImpl::index_artists() {
         uint16_t name_offset = raw->ofs_name_near;
         if ((raw->subtype & 0x04) == 0x04) {
             auto far_data = pdb_.data_at(row_base + 0x0a, 2);
-            if (far_data.size() >= 2) {
-                name_offset = static_cast<uint16_t>(far_data[0]) |
-                              (static_cast<uint16_t>(far_data[1]) << 8);
+            if (far_data.second >= 2) {
+                name_offset = static_cast<uint16_t>(far_data.first[0]) |
+                              (static_cast<uint16_t>(far_data.first[1]) << 8);
             }
         }
 
@@ -251,15 +251,15 @@ void DatabaseImpl::index_artists() {
         }
     });
 
-    LOG_INFO("Indexed {} artists", artist_index.size());
+    LOG_INFO("Indexed " + std::to_string(artist_index.size()) + " artists");
 }
 
 void DatabaseImpl::index_albums() {
     scan_table(PageType::Albums, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawAlbumRow));
-        if (data.size() < sizeof(RawAlbumRow)) return;
+        if (data.second < sizeof(RawAlbumRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawAlbumRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawAlbumRow*>(data.first);
 
         AlbumRow row;
         row.id = AlbumId{static_cast<int64_t>(raw->id)};
@@ -269,9 +269,9 @@ void DatabaseImpl::index_albums() {
         uint16_t name_offset = raw->ofs_name_near;
         if ((raw->subtype & 0x04) == 0x04) {
             auto far_data = pdb_.data_at(row_base + 0x16, 2);
-            if (far_data.size() >= 2) {
-                name_offset = static_cast<uint16_t>(far_data[0]) |
-                              (static_cast<uint16_t>(far_data[1]) << 8);
+            if (far_data.second >= 2) {
+                name_offset = static_cast<uint16_t>(far_data.first[0]) |
+                              (static_cast<uint16_t>(far_data.first[1]) << 8);
             }
         }
 
@@ -287,15 +287,15 @@ void DatabaseImpl::index_albums() {
         }
     });
 
-    LOG_INFO("Indexed {} albums", album_index.size());
+    LOG_INFO("Indexed " + std::to_string(album_index.size()) + " albums");
 }
 
 void DatabaseImpl::index_genres() {
     scan_table(PageType::Genres, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawGenreRow));
-        if (data.size() < sizeof(RawGenreRow)) return;
+        if (data.second < sizeof(RawGenreRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawGenreRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawGenreRow*>(data.first);
 
         GenreRow row;
         row.id = GenreId{static_cast<int64_t>(raw->id)};
@@ -308,15 +308,15 @@ void DatabaseImpl::index_genres() {
         }
     });
 
-    LOG_INFO("Indexed {} genres", genre_index.size());
+    LOG_INFO("Indexed " + std::to_string(genre_index.size()) + " genres");
 }
 
 void DatabaseImpl::index_labels() {
     scan_table(PageType::Labels, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawLabelRow));
-        if (data.size() < sizeof(RawLabelRow)) return;
+        if (data.second < sizeof(RawLabelRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawLabelRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawLabelRow*>(data.first);
 
         LabelRow row;
         row.id = LabelId{static_cast<int64_t>(raw->id)};
@@ -329,15 +329,15 @@ void DatabaseImpl::index_labels() {
         }
     });
 
-    LOG_INFO("Indexed {} labels", label_index.size());
+    LOG_INFO("Indexed " + std::to_string(label_index.size()) + " labels");
 }
 
 void DatabaseImpl::index_colors() {
     scan_table(PageType::Colors, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawColorRow));
-        if (data.size() < sizeof(RawColorRow)) return;
+        if (data.second < sizeof(RawColorRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawColorRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawColorRow*>(data.first);
 
         ColorRow row;
         row.id = ColorId{static_cast<int64_t>(raw->id)};
@@ -350,15 +350,15 @@ void DatabaseImpl::index_colors() {
         }
     });
 
-    LOG_INFO("Indexed {} colors", color_index.size());
+    LOG_INFO("Indexed " + std::to_string(color_index.size()) + " colors");
 }
 
 void DatabaseImpl::index_keys() {
     scan_table(PageType::Keys, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawKeyRow));
-        if (data.size() < sizeof(RawKeyRow)) return;
+        if (data.second < sizeof(RawKeyRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawKeyRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawKeyRow*>(data.first);
 
         KeyRow row;
         row.id = KeyId{static_cast<int64_t>(raw->id)};
@@ -371,15 +371,15 @@ void DatabaseImpl::index_keys() {
         }
     });
 
-    LOG_INFO("Indexed {} musical keys", key_index.size());
+    LOG_INFO("Indexed " + std::to_string(key_index.size()) + " musical keys");
 }
 
 void DatabaseImpl::index_artwork() {
     scan_table(PageType::Artwork, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawArtworkRow));
-        if (data.size() < sizeof(RawArtworkRow)) return;
+        if (data.second < sizeof(RawArtworkRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawArtworkRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawArtworkRow*>(data.first);
 
         ArtworkRow row;
         row.id = ArtworkId{static_cast<int64_t>(raw->id)};
@@ -388,15 +388,15 @@ void DatabaseImpl::index_artwork() {
         artwork_index[row.id] = row;
     });
 
-    LOG_INFO("Indexed {} artwork paths", artwork_index.size());
+    LOG_INFO("Indexed " + std::to_string(artwork_index.size()) + " artwork paths");
 }
 
 void DatabaseImpl::index_playlists() {
     scan_table(PageType::PlaylistEntries, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawPlaylistEntryRow));
-        if (data.size() < sizeof(RawPlaylistEntryRow)) return;
+        if (data.second < sizeof(RawPlaylistEntryRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawPlaylistEntryRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawPlaylistEntryRow*>(data.first);
 
         PlaylistId playlist_id{static_cast<int64_t>(raw->playlist_id)};
         TrackId track_id{static_cast<int64_t>(raw->track_id)};
@@ -409,15 +409,15 @@ void DatabaseImpl::index_playlists() {
         playlist[entry_index] = track_id;
     });
 
-    LOG_INFO("Indexed {} playlists", playlist_index.size());
+    LOG_INFO("Indexed " + std::to_string(playlist_index.size()) + " playlists");
 }
 
 void DatabaseImpl::index_playlist_folders() {
     scan_table(PageType::PlaylistTree, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawPlaylistTreeRow));
-        if (data.size() < sizeof(RawPlaylistTreeRow)) return;
+        if (data.second < sizeof(RawPlaylistTreeRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawPlaylistTreeRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawPlaylistTreeRow*>(data.first);
 
         PlaylistFolderEntry entry;
         entry.id = PlaylistId{static_cast<int64_t>(raw->id)};
@@ -434,15 +434,15 @@ void DatabaseImpl::index_playlist_folders() {
         folder[sort_order] = entry;
     });
 
-    LOG_INFO("Indexed {} playlist folders", playlist_folder_index.size());
+    LOG_INFO("Indexed " + std::to_string(playlist_folder_index.size()) + " playlist folders");
 }
 
 void DatabaseImpl::index_history_playlists() {
     scan_table(PageType::HistoryPlaylists, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawHistoryPlaylistRow));
-        if (data.size() < sizeof(RawHistoryPlaylistRow)) return;
+        if (data.second < sizeof(RawHistoryPlaylistRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawHistoryPlaylistRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawHistoryPlaylistRow*>(data.first);
 
         PlaylistId id{static_cast<int64_t>(raw->id)};
         std::string name = pdb_.read_string(row_base + sizeof(RawHistoryPlaylistRow));
@@ -450,15 +450,15 @@ void DatabaseImpl::index_history_playlists() {
         history_playlist_name_index[name] = id;
     });
 
-    LOG_INFO("Indexed {} history playlist names", history_playlist_name_index.size());
+    LOG_INFO("Indexed " + std::to_string(history_playlist_name_index.size()) + " history playlist names");
 }
 
 void DatabaseImpl::index_history_entries() {
     scan_table(PageType::HistoryEntries, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawHistoryEntryRow));
-        if (data.size() < sizeof(RawHistoryEntryRow)) return;
+        if (data.second < sizeof(RawHistoryEntryRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawHistoryEntryRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawHistoryEntryRow*>(data.first);
 
         PlaylistId playlist_id{static_cast<int64_t>(raw->playlist_id)};
         TrackId track_id{static_cast<int64_t>(raw->track_id)};
@@ -471,7 +471,7 @@ void DatabaseImpl::index_history_entries() {
         playlist[entry_index] = track_id;
     });
 
-    LOG_INFO("Indexed {} history playlists", history_playlist_index.size());
+    LOG_INFO("Indexed " + std::to_string(history_playlist_index.size()) + " history playlists");
 }
 
 void DatabaseImpl::index_tags() {
@@ -481,9 +481,9 @@ void DatabaseImpl::index_tags() {
 
     scan_table_ext(pdb_, PageTypeExt::Tags, [this, &category_positions, &tag_positions](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawTagRow));
-        if (data.size() < sizeof(RawTagRow)) return;
+        if (data.second < sizeof(RawTagRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawTagRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawTagRow*>(data.first);
 
         TagRow row;
         row.id = TagId{static_cast<int64_t>(raw->id)};
@@ -497,8 +497,8 @@ void DatabaseImpl::index_tags() {
         if (raw->subtype == 0x0684) {
             // Long name offset - read additional offset
             auto far_offset_data = pdb_.data_at(row_base + raw->ofs_name_near, 4);
-            if (far_offset_data.size() >= 4) {
-                uint32_t far_offset = *reinterpret_cast<const uint32_t*>(far_offset_data.data());
+            if (far_offset_data.second >= 4) {
+                uint32_t far_offset = *reinterpret_cast<const uint32_t*>(far_offset_data.first);
                 name_offset = row_base + far_offset;
             }
         }
@@ -536,15 +536,15 @@ void DatabaseImpl::index_tags() {
         }
     }
 
-    LOG_INFO("Indexed {} tags, {} categories", tag_index.size(), category_index.size());
+    LOG_INFO("Indexed " + std::to_string(tag_index.size()) + " tags, " + std::to_string(category_index.size()) + " categories");
 }
 
 void DatabaseImpl::index_tag_tracks() {
     scan_table_ext(pdb_, PageTypeExt::TagTracks, [this](size_t row_base) {
         auto data = pdb_.data_at(row_base, sizeof(RawTagTrackRow));
-        if (data.size() < sizeof(RawTagTrackRow)) return;
+        if (data.second < sizeof(RawTagTrackRow)) return;
 
-        const auto* raw = reinterpret_cast<const RawTagTrackRow*>(data.data());
+        const auto* raw = reinterpret_cast<const RawTagTrackRow*>(data.first);
 
         TagId tag_id{static_cast<int64_t>(raw->tag_id)};
         TrackId track_id{static_cast<int64_t>(raw->track_id)};
