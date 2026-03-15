@@ -19,6 +19,7 @@
 - `CMakeLists.txt`
 - `CODE_OF_CONDUCT.md`
 - `CONTRIBUTING.md`
+- `FILE-STRUCTURE.md`
 - `include/`
 - `IR_SCHEMA.md`
 - `LICENSE`
