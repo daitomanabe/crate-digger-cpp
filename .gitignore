@@ -83,17 +83,13 @@ coverage/
 .DS_Store
 Thumbs.db
 *.log
+FILE-STRUCTURE.md
 .env
 .env.*
 .idea/
 .vscode/
 *.swp
 *.swo
-node_modules/
-dist/
-coverage/
-.next/
-.vite/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -110,6 +106,5 @@ __pycache__/
 CMakeFiles/
 CMakeCache.txt
 cmake-build-*/
-# workspace-repo-normalizer: end
-# Local-only structure notes
+# workspace-repo-normalizer: end# Local-only structure notes
 FILE-STRUCTURE.md
