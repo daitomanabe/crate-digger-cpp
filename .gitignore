@@ -111,3 +111,5 @@ CMakeFiles/
 CMakeCache.txt
 cmake-build-*/
 # workspace-repo-normalizer: end
+# Local-only structure notes
+FILE-STRUCTURE.md
