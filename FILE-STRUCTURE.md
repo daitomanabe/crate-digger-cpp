@@ -4,9 +4,9 @@
 
         ## Root
 
-        - Name: `crate-digger-cpp__implementation__crate-digger-cpp`
-        - Role: `extracted-project`
-        - Path: `/Volumes/OWC Envoy Ultra/backup-not-duplicated/crate-digger-cpp__implementation__crate-digger-cpp`
+        - Name: `crate-digger-cpp`
+        - Role: `repo`
+        - Path: `/Volumes/OWC Envoy Ultra/backup-not-duplicated/crate-digger-cpp`
 
         ## Immediate Children
 
@@ -23,9 +23,11 @@
 - `include/`
 - `IR_SCHEMA.md`
 - `LICENSE`
+- `PLANS.md`
 - `README.md`
 - `src/`
 - `tests/`
+- `webpage/`
 - `website/`
 
         ## Submodules

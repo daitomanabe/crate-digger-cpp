@@ -1,31 +1,30 @@
-        # AGENTS.md
+# AGENTS.md
 
-        ## Repository Role
+## Repository Role
 
-        - Name: `crate-digger-cpp__implementation__crate-digger-cpp`
-        - Role: `extracted-project`
-        - Original source path: `crate-digger-cpp/implementation/crate-digger-cpp`
-- Public surface: website/
+- Name: `crate-digger-cpp`
+- Role: `repo`
+- Public surface: website, webpage
 
-        ## Working Rules
+## Working Rules
 
-        - This root is the canonical git root for this repository.
-        - Nested repositories must stay as submodules, never as raw nested `.git` directories.
-        - Do not merge sibling repositories back into this tree.
-        - Preserve generated bilingual documentation unless you are intentionally updating it.
+- This root is the canonical git root for this repository.
+- Nested repositories must stay as submodules, never as raw nested `.git` directories.
+- Do not merge sibling repositories back into this tree.
+- Preserve generated bilingual documentation unless you are intentionally updating it.
 
-        ## Important Paths
+## Important Paths
 
-        - `README.md` is the human-facing overview.
-        - `FILE-STRUCTURE.md` documents the normalized layout.
-        - Public materials live in `website/`, `webpage/`, `ui/`, or root `index.html`.
+- `README.md` is the human-facing overview.
+- `FILE-STRUCTURE.md` documents the normalized layout.
+- Public materials live in `website/`, `webpage/`, `ui/`, or root `index.html`.
 
-        ## Submodules
+## Submodules
 
-        - None
+- None
 
-        ## Safe Changes
+## Safe Changes
 
-        - Update `.gitignore` by appending to the generated block when needed.
-        - Keep vendor dependencies isolated as submodules.
-        - Prefer small, repo-local commits.
+- Update `.gitignore` by appending to the generated block when needed.
+- Keep vendor dependencies isolated as submodules.
+- Prefer small, repo-local commits.
