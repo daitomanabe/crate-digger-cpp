@@ -78,3 +78,36 @@ compile_flags.txt
 *.gcda
 *.gcno
 coverage/
+
+# workspace-repo-normalizer: begin
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+.idea/
+.vscode/
+*.swp
+*.swo
+node_modules/
+dist/
+coverage/
+.next/
+.vite/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.dSYM/
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+# workspace-repo-normalizer: end
